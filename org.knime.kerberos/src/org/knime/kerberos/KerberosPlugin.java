@@ -42,16 +42,61 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
- * 
+ *
  * History
- *   Jan 14, 2019 (bjoern): created
+ *   Jan 15, 2019 (bjoern): created
  */
 package org.knime.kerberos;
 
-/**
- * 
- * @author bjoern
- */
-public class Test {
+import org.eclipse.ui.plugin.AbstractUIPlugin;
+import org.osgi.framework.BundleContext;
 
+/**
+ * Plugin of the Kerberos authentication framework.
+ *
+ * @author Bjoern Lohrmann, KNIME GmbH
+ */
+public class KerberosPlugin extends AbstractUIPlugin {
+
+    // The shared instance.
+    private static KerberosPlugin plugin;
+
+    /**
+     * The constructor.
+     */
+    public KerberosPlugin() {
+        plugin = this;
+    }
+
+    /**
+     * This method is called upon plug-in activation.
+     *
+     * @param context The bundle context.
+     * @throws Exception If cause by super class.
+     */
+    @Override
+    public void start(final BundleContext context) throws Exception {
+        super.start(context);
+    }
+
+    /**
+     * This method is called when the plug-in is stopped.
+     *
+     * @param context The bundle context.
+     * @throws Exception If cause by super class.
+     */
+    @Override
+    public void stop(final BundleContext context) throws Exception {
+        plugin = null;
+        super.stop(context);
+    }
+
+    /**
+     * Returns the shared instance.
+     *
+     * @return The shared instance
+     */
+    public static KerberosPlugin getDefault() {
+        return plugin;
+    }
 }
