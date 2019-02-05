@@ -78,12 +78,23 @@ public class KerberosProvider {
     }
 
     /**
-     * Fetches the current state o
-     *
-     * @return a Future with the current KerberosState.
+     * @return a Future that provides the current {@link KerberosState}.
      */
-    public static Future<KerberosState> fetchState() {
+    public static Future<KerberosState> getKerberosState() {
         return KerberosAuthManager.EXECUTOR.submit(KerberosAuthManager::getKerberosState);
+    }
+
+    /**
+     * @return the current {@link KerberosState}
+     */
+    public static KerberosState getKerberosStateBlocking() {
+        try {
+            return getFutureResult(getKerberosState(), null);
+        } catch (Exception e) {
+            // should never happen, but this operation cannot be cancelled and does not throw
+            // any exception by itself
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -143,7 +154,16 @@ public class KerberosProvider {
             exec.checkCanceled();
         }
 
-        final Future<T> future = doWithKerberosAuth(callback);
+        return getFutureResult(doWithKerberosAuth(callback), exec);
+    }
+
+    private static <T> T getFutureResult(final Future<T> future, final ExecutionMonitor exec)
+        throws Exception {
+
+        if (exec != null) {
+            exec.checkCanceled();
+        }
+
         while (true) {
             try {
                 return future.get(250, TimeUnit.MILLISECONDS);

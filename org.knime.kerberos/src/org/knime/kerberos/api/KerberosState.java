@@ -54,7 +54,7 @@ import java.time.Instant;
  * Holds a Kerberos authentication state.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
- * @see KerberosProvider#fetchState()
+ * @see KerberosProvider#getKerberosState()
  */
 public class KerberosState {
 

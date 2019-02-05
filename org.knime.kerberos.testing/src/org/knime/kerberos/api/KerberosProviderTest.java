@@ -138,7 +138,7 @@ public class KerberosProviderTest {
     }
 
     private static void assertAuthenticated(final String principal) throws Exception {
-        final KerberosState state = Util.awaitFuture(KerberosProvider.fetchState());
+        final KerberosState state = Util.awaitFuture(KerberosProvider.getKerberosState());
         assertTrue(state.isAuthenticated());
         assertEquals(principal, state.getPrincipal());
     }
