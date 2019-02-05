@@ -65,6 +65,7 @@ import javax.security.auth.login.LoginException;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.knime.core.node.CanceledExecutionException;
@@ -110,6 +111,15 @@ public class KerberosProviderTest {
         testKDC.stop();
     }
 
+
+    /**
+     * Setup for each individual test method.
+     */
+    @Before
+    public void setupBefore() {
+        KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
+    }
+
     /**
      * Rolls back to initial state after each test
      *
@@ -118,7 +128,6 @@ public class KerberosProviderTest {
      */
     @After
     public void rollBack() throws InterruptedException, ExecutionException {
-        KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
         try {
             KerberosInternalAPI.logout().get();
         } catch (ExecutionException e) {

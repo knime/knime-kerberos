@@ -50,7 +50,6 @@ package org.knime.kerberos.config;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,10 +68,10 @@ import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 public class KerberosPluginConfig {
 
     /**
-     * Internal map with config overrides for unit-testing If this is non-empty, then the various getter methods won't
+     * Internal map with config overrides for unit-testing If this is non-null, then the various getter methods won't
      * use the Eclipse PreferenceStore, but this map.
      */
-    public static Map<String, String> TEST_OVERRIDES = new HashMap<>();
+    public static Map<String, String> TEST_OVERRIDES = null;
 
     private static IPreferenceStore m_referenceStore;
 
