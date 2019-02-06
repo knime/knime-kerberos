@@ -52,11 +52,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.util.stream.Stream;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -594,13 +596,22 @@ public class KerberosInternalAPITest {
      */
     @Test
     public void test_renewal() throws Exception {
-
-        ProcessBuilder pb = new ProcessBuilder("kinit" , "-l", "2m", "-r" ,"4m" , "-c" , testKDC.getCcFile() ,  "-k", "-t" , testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
+        String kinit = "kinit";
+        if(System.getProperty("os.name").startsWith("Windows")) {
+            //Windows will try to use the java kinit if we do not point it to MIT specifically
+            String mitPath= Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
+            kinit = mitPath + File.separator + "kinit";
+        }
+        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r" ,"4m" , "-c" , testKDC.getCcFile() ,  "-k", "-t" , testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
         pb.environment().put("KRB5CCNAME", testKDC.getCcFile());
         pb.environment().put("KRB5_CONFIG", testKDC.getKdcConfPath());
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        pb.start().waitFor();
+        Process proc = pb.start();
+        proc.waitFor();
+        if(proc.exitValue() != 0) {
+            throw new RuntimeException("Could not obtain ticket via kinit");
+        }
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "",
             "", "", AuthMethod.TICKET_CACHE, "", "", true,
@@ -694,11 +705,21 @@ public class KerberosInternalAPITest {
 
     }
 
+    /**
+     * Callback Handler for user name/password authentication
+     *
+     * @author Mareike Hoeger, KNIME GmbH, Konstanz, Germany
+     */
     public static class TestCallBackHandler implements CallbackHandler {
         private final String m_user;
 
         private final String m_pwd;
 
+        /**
+         * Creates a Callback handler that answers with the given user and password
+         * @param user the user name
+         * @param pwd the password
+         */
         public TestCallBackHandler(final String user, final String pwd) {
             m_user = user;
             m_pwd = pwd;

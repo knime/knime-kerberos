@@ -51,6 +51,7 @@ package org.knime.kerberos.testing;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -133,6 +134,7 @@ public class KDC {
                 e.printStackTrace();
             }
         });
+        Files.delete(Paths.get(m_ccFile));
     }
 
     /**
