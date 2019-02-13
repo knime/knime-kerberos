@@ -398,8 +398,8 @@ public class KerberosProviderTest {
     }
 
     private static KerberosPluginConfig createKeytabKerberosConfig() {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "",
+            "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         return config;
     }

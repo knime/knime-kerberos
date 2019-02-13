@@ -112,6 +112,7 @@ public class KerberosProvider {
                     throw new LoginException("Not logged in. Please login via the preference page first.");
                 }
                 try {
+                    KerberosAuthManager.configure(config);
                     KerberosAuthManager.login(config);
                 } catch (Exception e) {
                     KerberosAuthManager.rollbackToInitialState();
