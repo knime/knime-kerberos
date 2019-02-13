@@ -97,6 +97,8 @@ public class KerberosPluginConfig {
 
     private final String m_ticketCache;
 
+    private final long m_renewalSafetyMarginSeconds;
+
     /**
      * Creates a new instance. All String parameters are sanitized, i.e. empty strings or those only containing
      * whitespaces mapped to null.
@@ -110,10 +112,11 @@ public class KerberosPluginConfig {
      * @param keytabFile
      * @param doDebugLogging
      * @param debugLogLevel
+     * @param renewalSaftyMargin
      */
     public KerberosPluginConfig(final KerberosConfigSource confSource, final String kerberosConfFile,
         final String realm, final String kdc, final AuthMethod authMethod, final String keytabPrincipal,
-        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel) {
+        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSaftyMargin) {
 
         m_confSource = confSource;
         m_kerberosConfFile = cleanUp(kerberosConfFile);
@@ -124,6 +127,7 @@ public class KerberosPluginConfig {
         m_keytabFile = cleanUp(keytabFile);
         m_doDebugLogging = doDebugLogging;
         m_debugLogLevel = cleanUp(debugLogLevel);
+        m_renewalSafetyMarginSeconds = renewalSaftyMargin;
         m_isTestConfiguration = false;
         m_ticketCache = null;
     }
@@ -141,12 +145,13 @@ public class KerberosPluginConfig {
      * @param keytabFile
      * @param doDebugLogging
      * @param debugLogLevel
+     * @param renewalSaftyMargin
      * @param isTestConfiguration
      * @param ticketCache Path to ticket cache when using TICKET_CACHE authentication (only for unit-testing)
      */
     public KerberosPluginConfig(final KerberosConfigSource confSource, final String kerberosConfFile,
         final String realm, final String kdc, final AuthMethod authMethod, final String keytabPrincipal,
-        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel,
+        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSaftyMargin,
         final boolean isTestConfiguration, final String ticketCache) {
 
         m_confSource = confSource;
@@ -158,6 +163,7 @@ public class KerberosPluginConfig {
         m_keytabFile = cleanUp(keytabFile);
         m_doDebugLogging = doDebugLogging;
         m_debugLogLevel = cleanUp(debugLogLevel);
+        m_renewalSafetyMarginSeconds = renewalSaftyMargin;
         m_isTestConfiguration = isTestConfiguration;
         m_ticketCache = ticketCache;
     }
@@ -289,6 +295,13 @@ public class KerberosPluginConfig {
     }
 
     /**
+     * @return the renewalSafetyMargin
+     */
+    public long getRenewalSafetyMarginSeconds() {
+        return m_renewalSafetyMarginSeconds;
+    }
+
+    /**
      * @return the isTestConfiguration
      */
     public boolean isTestConfiguration() {
@@ -339,6 +352,27 @@ public class KerberosPluginConfig {
         }
     }
 
+    private static long loadLong(final String key) {
+        if (TEST_OVERRIDES != null) {
+            return Long.parseLong(TEST_OVERRIDES.get(key));
+        } else if (getPreferenceStore().isDefault(key)) {
+            return getPreferenceStore().getDefaultLong(key);
+        } else {
+            return getPreferenceStore().getLong(key);
+        }
+    }
+
+    private static void saveLong(final String key, final long value) {
+        if (TEST_OVERRIDES != null) {
+            TEST_OVERRIDES.put(key, String.valueOf(value));
+        } else {
+            if (getPreferenceStore().getDefaultLong(key) == (value)) {
+                getPreferenceStore().setToDefault(key);
+            } else {
+                getPreferenceStore().setValue(key, value);
+            }
+        }
+    }
     /**
      * @return a new {@link KerberosPluginConfig} that containes the currently stored Eclipse preferences.
      */
@@ -347,7 +381,7 @@ public class KerberosPluginConfig {
             loadString(PrefKey.KERBEROS_CONF_FILE_KEY), loadString(PrefKey.KERBEROS_REALM_KEY),
             loadString(PrefKey.KERBEROS_KDC_KEY), AuthMethod.fromValue(loadString(PrefKey.AUTH_METHOD_KEY)),
             loadString(PrefKey.KEYTAB_PRINCIPAL_KEY), loadString(PrefKey.KEYTAB_FILE_KEY),
-            loadBoolean(PrefKey.DEBUG_KEY), loadString(PrefKey.DEBUG_LOG_LEVEL_KEY));
+            loadBoolean(PrefKey.DEBUG_KEY), loadString(PrefKey.DEBUG_LOG_LEVEL_KEY), loadLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY));
     }
 
     /**
@@ -363,6 +397,7 @@ public class KerberosPluginConfig {
         saveString(PrefKey.KEYTAB_FILE_KEY, getKeytabFile());
         saveBoolean(PrefKey.DEBUG_KEY, doDebugLogging());
         saveString(PrefKey.DEBUG_LOG_LEVEL_KEY, getDebugLogLevel());
+        saveLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY, getRenewalSafetyMarginSeconds());
     }
 
     /**
@@ -438,7 +473,7 @@ public class KerberosPluginConfig {
             && m_realm.equalsIgnoreCase(other.m_realm) && m_kdc.equalsIgnoreCase(other.m_kdc)
             && m_authMethod.equals(other.m_authMethod) && m_keytabPrincipal.equalsIgnoreCase(other.m_keytabPrincipal)
             && m_keytabFile.equalsIgnoreCase(other.m_keytabFile) && m_doDebugLogging == other.m_doDebugLogging
-            && m_debugLogLevel.equalsIgnoreCase(m_debugLogLevel);
+            && m_debugLogLevel.equalsIgnoreCase(m_debugLogLevel) && m_renewalSafetyMarginSeconds == other.m_renewalSafetyMarginSeconds;
     }
 
     @Override
@@ -454,6 +489,7 @@ public class KerberosPluginConfig {
         result = result * prime + ((m_keytabFile == null) ? 0 : m_keytabFile.hashCode());
         result = result * prime + (m_doDebugLogging ? 1 : 0);
         result = result * prime + ((m_debugLogLevel == null) ? 0 : m_debugLogLevel.hashCode());
+        result = result * prime + Long.hashCode(m_renewalSafetyMarginSeconds);
 
         return result;
     }

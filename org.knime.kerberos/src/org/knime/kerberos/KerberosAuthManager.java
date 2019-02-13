@@ -305,36 +305,36 @@ public class KerberosAuthManager {
      */
     public static void login(final KerberosPluginConfig config, final CallbackHandler handler) throws LoginException {
         LOG.info("Doing Kerberos login with config " + config.getConfigurationSummary());
+
         final LoginContext tmpLoginContext =
             new LoginContext("KNIMEKerberosLoginContext", null, handler, new KerberosJAASConfiguration(config));
         // try authentication
         tmpLoginContext.login();
         loginContext = tmpLoginContext;
-        loginState = createAuthenticatedKerberosState();
+        loginState = createAuthenticatedKerberosState(config.getRenewalSafetyMarginSeconds());
         LOG.info("Logged into Kerberos as " + loginState.toString());
     }
 
-    private static KerberosState createAuthenticatedKerberosState() {
+    private static KerberosState createAuthenticatedKerberosState(final long renewalSafetyMarginSeconds) {
         final Subject subject = loginContext.getSubject();
         final String principal = subject.getPrincipals(KerberosPrincipal.class).iterator().next().getName();
 
         final KerberosTicket tgt = subject.getPrivateCredentials(KerberosTicket.class).iterator().next();
         final Instant validUntil = tgt.getEndTime().toInstant();
-        scheduleRenewal(tgt);
+        scheduleRenewal(tgt, renewalSafetyMarginSeconds);
         return new KerberosState(principal, validUntil);
     }
 
-    private static void scheduleRenewal(final KerberosTicket tgt) {
+    private static void scheduleRenewal(final KerberosTicket tgt, final long renewalSafetyMarginSeconds) {
         if(tgt.isRenewable()) {
-            long renewalMills = Math.max(tgt.getEndTime().getTime() - Instant.now().toEpochMilli() - 30000, 5000);
+            long renewalMills = Math.max(tgt.getEndTime().getTime() - Instant.now().toEpochMilli() - renewalSafetyMarginSeconds*1000, 5000);
             renewFuture = EXECUTOR.schedule(() -> {
                     try {
                         if(loginContext != null && loginContext.getSubject() != null) {
                             final KerberosTicket ticket = loginContext.getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
                             ticket.refresh();
-                            loginState = createAuthenticatedKerberosState();
+                            loginState = createAuthenticatedKerberosState(renewalSafetyMarginSeconds);
                             LOG.info("Renewed Kerberos login for " + loginState.toString());
-                            scheduleRenewal(ticket);
                         }
                     } catch (RefreshFailedException ex) {
                         LOG.error(String.format("Could not renew Kerberos login: %s" , ex.getMessage()), ex);

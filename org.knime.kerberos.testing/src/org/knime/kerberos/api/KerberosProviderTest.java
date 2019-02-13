@@ -170,7 +170,7 @@ public class KerberosProviderTest {
     @Test
     public void test_doWithKerberosAuth_userPwd_and_already_logged_in() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, true, null);
+            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         config.save();
 
         KerberosInternalAPI.login(config, new TestCallBackHandler(KDC.USER, KDC.PWD));
@@ -194,7 +194,7 @@ public class KerberosProviderTest {
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_userPwd_but_not_logged_in() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, true, null);
+            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         config.save();
 
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
@@ -212,7 +212,7 @@ public class KerberosProviderTest {
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_with_missing_ticketCache() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, true, null);
+            testKDC.getKDCHost(), AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         config.save();
 
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
@@ -249,7 +249,7 @@ public class KerberosProviderTest {
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuthBlocking_userPwd_but_not_logged_in() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, true, null);
+            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         config.save();
 
         KerberosProvider.doWithKerberosAuthBlocking(() -> {
@@ -400,7 +400,7 @@ public class KerberosProviderTest {
     private static KerberosPluginConfig createKeytabKerberosConfig() {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
         return config;
     }
 }
