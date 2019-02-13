@@ -49,7 +49,7 @@
 package org.knime.kerberos;
 
 import org.eclipse.ui.plugin.AbstractUIPlugin;
-import org.knime.kerberos.config.PrefInitializer;
+import org.knime.kerberos.config.KerberosLegacyPreferenceHelper;
 import org.osgi.framework.BundleContext;
 
 /**
@@ -78,7 +78,7 @@ public class KerberosPlugin extends AbstractUIPlugin {
     @Override
     public void start(final BundleContext context) throws Exception {
         super.start(context);
-        new PrefInitializer().initializeDefaultPreferences();
+        KerberosLegacyPreferenceHelper.migrateLegacyKerberosPreferences();
     }
 
     /**
