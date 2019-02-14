@@ -55,8 +55,10 @@ import java.util.concurrent.Future;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.login.LoginException;
 
+import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.api.KerberosState;
 import org.knime.kerberos.config.KerberosPluginConfig;
+import org.knime.kerberos.logger.KerberosLogger;
 
 /**
  * Internal API for Kerberos authentication
@@ -84,19 +86,24 @@ public class KerberosInternalAPI {
     @SuppressWarnings("restriction")
     public static Future<Void> validateConfig(final KerberosPluginConfig config, final boolean logoutIfNecessary) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
-            if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
 
-                if (logoutIfNecessary) {
-                    KerberosAuthManager.rollbackToInitialState();
-                } else {
-                    throw new IllegalStateException("You are still logged in.");
-                }
-            }
+            KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
             try {
-                KerberosAuthManager.configure(config);
-                return null;
+                if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
+                    if (logoutIfNecessary) {
+                        KerberosAuthManager.rollbackToInitialState();
+                    } else {
+                        throw new IllegalStateException("You are still logged in.");
+                    }
+                }
+                try {
+                    KerberosAuthManager.configure(config);
+                    return null;
+                } finally {
+                    KerberosAuthManager.rollbackToInitialState();
+                }
             } finally {
-                KerberosAuthManager.rollbackToInitialState();
+                KerberosLogger.stopCapture();
             }
         });
     }
@@ -116,18 +123,25 @@ public class KerberosInternalAPI {
     @SuppressWarnings("restriction")
     public static Future<KerberosState> login(final KerberosPluginConfig config, final CallbackHandler handler) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
-            if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
-                //No reauthentication.
-                throw new IllegalStateException("Still logged in. Please log out first.");
-            }
+
+            KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
             try {
-                KerberosAuthManager.configure(config);
-                KerberosAuthManager.login(config, handler);
-                return KerberosAuthManager.getKerberosState();
-            } catch (Exception e) {
-                KerberosAuthManager.rollbackToInitialState();
-                throw e;
+                if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
+                    //No reauthentication.
+                    throw new IllegalStateException("Still logged in. Please log out first.");
+                }
+                try {
+                    KerberosAuthManager.configure(config);
+                    KerberosAuthManager.login(config, handler);
+                    return KerberosAuthManager.getKerberosState();
+                } catch (Exception e) {
+                    KerberosAuthManager.rollbackToInitialState();
+                    throw e;
+                }
+            } finally {
+                KerberosLogger.stopCapture();
             }
+
         });
     }
 
@@ -147,5 +161,4 @@ public class KerberosInternalAPI {
             }
         });
     }
-
 }

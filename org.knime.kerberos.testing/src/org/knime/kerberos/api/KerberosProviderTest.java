@@ -49,6 +49,7 @@
 package org.knime.kerberos.api;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
@@ -77,6 +78,8 @@ import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
+import org.knime.kerberos.logger.KerberosLogger;
+import org.knime.kerberos.logger.LogForwarder;
 import org.knime.kerberos.testing.KDC;
 import org.knime.kerberos.testing.Util;
 import org.mockito.invocation.InvocationOnMock;
@@ -90,6 +93,8 @@ import org.mockito.stubbing.Answer;
 public class KerberosProviderTest {
 
     private static KDC testKDC;
+
+    private LogForwarder m_mockedLogForwarder;
 
     /**
      * Sets up a test KDC.
@@ -118,6 +123,8 @@ public class KerberosProviderTest {
     @Before
     public void setupBefore() {
         KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
+        m_mockedLogForwarder = mock(LogForwarder.class);
+        KerberosLogger.setLogForwarderForTesting(m_mockedLogForwarder);
     }
 
     /**
@@ -141,6 +148,7 @@ public class KerberosProviderTest {
         final KerberosState state = Util.awaitFuture(KerberosProvider.getKerberosState());
         assertTrue(state.isAuthenticated());
         assertEquals(principal, state.getPrincipal());
+        assertFalse(KerberosLogger.getCapturedLines().isEmpty());
     }
 
     /**
@@ -181,8 +189,6 @@ public class KerberosProviderTest {
                 s.getPrincipals(KerberosPrincipal.class).iterator().next().getName());
             return null;
         }));
-
-        assertAuthenticated(testKDC.getUserPrincipal());
     }
 
     /**

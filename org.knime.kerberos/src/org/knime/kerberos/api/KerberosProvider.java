@@ -60,9 +60,11 @@ import javax.security.auth.login.LoginException;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.KerberosAuthManager;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
+import org.knime.kerberos.logger.KerberosLogger;
 
 /**
  * Provides Kerberos authentication for KNIME nodes. Nodes can use the {@link #doWithKerberosAuth(KerberosCallback)}
@@ -106,31 +108,38 @@ public class KerberosProvider {
      */
     public static <T> Future<T> doWithKerberosAuth(final KerberosCallback<T> callback) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
-            if (!KerberosAuthManager.getKerberosState().isAuthenticated()) {
-                final KerberosPluginConfig config = KerberosPluginConfig.load();
-                if (config.getAuthMethod() == AuthMethod.USER_PWD) {
-                    throw new LoginException("Not logged in. Please login via the preference page first.");
-                }
-                try {
-                    KerberosAuthManager.configure(config);
-                    KerberosAuthManager.login(config);
-                } catch (Exception e) {
-                    KerberosAuthManager.rollbackToInitialState();
-                    throw e;
-                }
-            }
+            final KerberosPluginConfig config = KerberosPluginConfig.load();
 
-            final Subject subject = KerberosAuthManager.getSubject();
             try {
-                return Subject.doAs(subject, new PrivilegedExceptionAction<T>() {
-                    @Override
-                    public T run() throws Exception {
-                        return callback.doAuthenticated();
+                KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
+
+                if (!KerberosAuthManager.getKerberosState().isAuthenticated()) {
+                    if (config.getAuthMethod() == AuthMethod.USER_PWD) {
+                        throw new LoginException("Not logged in. Please login via the preference page first.");
                     }
-                });
-            } catch (PrivilegedActionException e) {
-                // unpack the exception that was thrown by the callback
-                throw (Exception)e.getCause();
+                    try {
+                        KerberosAuthManager.configure(config);
+                        KerberosAuthManager.login(config);
+                    } catch (Exception e) {
+                        KerberosAuthManager.rollbackToInitialState();
+                        throw e;
+                    }
+                }
+
+                final Subject subject = KerberosAuthManager.getSubject();
+                try {
+                    return Subject.doAs(subject, new PrivilegedExceptionAction<T>() {
+                        @Override
+                        public T run() throws Exception {
+                            return callback.doAuthenticated();
+                        }
+                    });
+                } catch (PrivilegedActionException e) {
+                    // unpack the exception that was thrown by the callback
+                    throw (Exception)e.getCause();
+                }
+            } finally {
+                KerberosLogger.stopCapture();
             }
         });
     }

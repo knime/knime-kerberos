@@ -51,6 +51,7 @@ package org.knime.kerberos;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,6 +70,7 @@ import javax.security.auth.login.LoginException;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.knime.kerberos.api.KerberosState;
@@ -76,6 +78,8 @@ import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
+import org.knime.kerberos.logger.KerberosLogger;
+import org.knime.kerberos.logger.LogForwarder;
 import org.knime.kerberos.testing.KDC;
 import org.knime.kerberos.testing.Util;
 
@@ -90,6 +94,9 @@ import sun.security.krb5.KrbException;
 public class KerberosInternalAPITest {
 
     private static KDC testKDC;
+
+    private LogForwarder m_mockedLogForwarder;
+
 
     /**
      * Sets up a test testKDC.
@@ -126,6 +133,15 @@ public class KerberosInternalAPITest {
         System.clearProperty("sun.security.krb5.principal");
     }
 
+    /**
+     * Setup for each individual test method.
+     */
+    @Before
+    public void setup() {
+        m_mockedLogForwarder = mock(LogForwarder.class);
+        KerberosLogger.setLogForwarderForTesting(m_mockedLogForwarder);
+    }
+
     private static void testSuccessfulKeyTabLogin(final KerberosPluginConfig config) throws Exception {
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
@@ -134,6 +150,7 @@ public class KerberosInternalAPITest {
         assertTrue(state.isAuthenticated());
         assertEquals(testKDC.getKeytabPrincipal(), state.getPrincipal());
         assertTrue(Instant.now().isBefore(state.getTicketValidUntil()));
+        assertFalse(KerberosLogger.getCapturedLines().isEmpty());
     }
 
     private static void testSuccessfulUserPasswordLogin(final KerberosPluginConfig config, final String username)
@@ -145,6 +162,7 @@ public class KerberosInternalAPITest {
         assertTrue(state.isAuthenticated());
         assertEquals(KDC.USER + "@" + testKDC.getRealm(), state.getPrincipal());
         assertTrue(Instant.now().isBefore(state.getTicketValidUntil()));
+        assertFalse(KerberosLogger.getCapturedLines().isEmpty());
     }
 
     /**
