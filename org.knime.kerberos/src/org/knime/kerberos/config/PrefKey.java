@@ -192,7 +192,7 @@ public class PrefKey {
     public static final  String DEBUG_LOG_LEVEL_DEFAULT = "INFO";
 
     /** Preference key for the Kerberos ticket renewal safety margin. */
-    public static final  String RENEWAL_SAFETY_MARGIN_SECONDS_KEY = "org.knime.kerberos.renewalSafetyMargin";
+    public static final  String RENEWAL_SAFETY_MARGIN_SECONDS_KEY = "org.knime.kerberos.renewalSafetyMarginSeconds";
 
     /** Default value for the Kerberos  renewal safety margin. */
     public static final  long RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT = 180;
