@@ -7,4 +7,13 @@
             class="org.knime.kerberos.config.PrefInitializer">
       </initializer>
    </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            category="org.knime.workbench.ui.preferences"
+            class="org.knime.kerberos.config.eclipse.KerberosPreferencePage"
+            id="org.knime.kerberos.config.eclipse.KerberosPreferencePage"
+            name="Kerberos">
+      </page>
+   </extension>
 </plugin>

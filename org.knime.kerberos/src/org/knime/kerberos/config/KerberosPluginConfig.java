@@ -48,7 +48,6 @@
  */
 package org.knime.kerberos.config;
 
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -385,6 +384,17 @@ public class KerberosPluginConfig {
     }
 
     /**
+     * @return a new {@link KerberosPluginConfig} that contains default values.
+     */
+    public static KerberosPluginConfig defaults() {
+        return new KerberosPluginConfig(KerberosConfigSource.fromValue(PrefKey.KERBEROS_CONF_DEFAULT),
+            PrefKey.KERBEROS_CONF_FILE_DEFAULT, PrefKey.KERBEROS_REALM_DEFAULT, PrefKey.KERBEROS_KDC_DEFAULT,
+            AuthMethod.fromValue(PrefKey.AUTH_METHOD_DEFAULT), PrefKey.KEYTAB_PRINCIPAL_DEFAULT,
+            PrefKey.KEYTAB_FILE_DEFAULT, PrefKey.DEBUG_DEFAULT, PrefKey.DEBUG_LOG_LEVEL_DEFAULT,
+            PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT);
+    }
+
+    /**
      * Persists the contents of this {@link KerberosPluginConfig} object to Eclipse preferences.
      */
     public void save() {
@@ -417,9 +427,11 @@ public class KerberosPluginConfig {
             case FILE:
                 if (!hasKerberosConfFile()) {
                     errors.add("Kerberos config file must be specified.");
-                } else if (!Files.exists(Paths.get(getKerberosConfFile()))) {
+                } else if (!Paths.get(getKerberosConfFile()).toFile().exists()) {
                     warnings.add("Kerberos config file does not exist.");
-                } else if (!Files.isReadable(Paths.get(getKerberosConfFile()))) {
+                } else if (!Paths.get(getKerberosConfFile()).toFile().isFile()) {
+                    warnings.add("Kerberos config file must be a file.");
+                } else if (!Paths.get(getKerberosConfFile()).toFile().canRead()) {
                     warnings.add("Kerberos config file cannot be read, probably due to missing permissions.");
                 }
                 break;
@@ -447,10 +459,12 @@ public class KerberosPluginConfig {
 
                 if (!hasKeytabFile()) {
                     errors.add("Keytab file must be specified.");
-                } else if (!Files.exists(Paths.get(getKeytabFile()))) {
+                } else if (!Paths.get(getKeytabFile()).toFile().exists()) {
                     warnings.add("Keytab file does not exist.");
-                } else if (!Files.isReadable(Paths.get(getKeytabFile()))) {
-                    warnings.add("Kaytab file cannot be read, probably due to missing permissions.");
+                } else if (!Paths.get(getKeytabFile()).toFile().isFile()) {
+                    warnings.add("Keytab file must be a file.");
+                } else if (!Paths.get(getKeytabFile()).toFile().canRead()) {
+                    warnings.add("Keytab file cannot be read, probably due to missing permissions.");
                 }
                 break;
         }

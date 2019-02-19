@@ -148,14 +148,14 @@ public class KerberosInternalAPI {
     /**
      * Logs the user out if authenticated and sets the system back to its initial state.
      *
-     * @return a Future that returns nothing. {@link Future#get()} might throw an {@link ExecutionException} caused by
-     *         {@link IllegalStateException} if not authenticated.
+     * @return a Future for a {@link KerberosState} with the result of the successful logout. The {@link Future#get()}
+     *         might throw an {@link ExecutionException} caused by {@link IllegalStateException} if not authenticated.
      */
-    public static Future<Void> logout() {
+    public static Future<KerberosState> logout() {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
             if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
                 KerberosAuthManager.rollbackToInitialState();
-                return null;
+                return KerberosAuthManager.getKerberosState();
             } else {
                 throw new IllegalStateException("Not logged in.");
             }
