@@ -48,7 +48,9 @@
  */
 package org.knime.kerberos.config.eclipse;
 
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.TimeZone;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
@@ -103,6 +105,8 @@ public class KerberosPreferencesStatusWidget {
     private static final String STATE_RUN_LOGOUT = "Waiting for logout to complete...";
 
     private static final String KERBEROS_LOG_TITLE = "Kerberos debug log";
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME;
 
     private KerberosPreferencePage m_preferencePage;
 
@@ -183,27 +187,30 @@ public class KerberosPreferencesStatusWidget {
         m_statusExpiresLabel.setVisible(false);
         m_statusExpiresValue = new Label(m_statusGroup, SWT.NONE);
         m_statusExpiresValue.setText("");
-        m_statusExpiresValue.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        m_statusExpiresValue.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
         m_statusExpiresValue.setVisible(false);
+
+        m_statusLogLabel = new Label(m_statusGroup, SWT.NONE);
+        m_statusLogLabel.setText("Log:");
+        m_statusLogLabel.setLayoutData(new GridData(SWT.LEFT, SWT.TOP, false, false));
+        m_statusLogLink = new Link(m_statusGroup, SWT.BORDER);
+        m_statusLogLink.setText("<a>View debug log</a>");
+        m_statusLogLink.setLayoutData(new GridData(SWT.LEFT, SWT.TOP, true, false, 3, 1));
+        m_statusLogLink.addListener(SWT.Selection, event -> openKerberosLog());
+
+        final Label l = new Label(m_statusGroup, SWT.NONE);
+        l.setLayoutData(new GridData(SWT.FILL, SWT.NONE, true, false, 2, 1));
 
         m_statusValidateButton = new Button(m_statusGroup, SWT.PUSH);
         m_statusValidateButton.setText("  Validate  ");
         m_statusValidateButton.setToolTipText("Validate Kerberos configuration");
-        m_statusValidateButton.setLayoutData(new GridData(SWT.RIGHT, SWT.BOTTOM, false, false, 1, 2));
+        m_statusValidateButton.setLayoutData(new GridData(SWT.RIGHT, SWT.BOTTOM, false, false));
         m_statusValidateButton.setVisible(false);
 
         m_statusLoginLogoutButton = new Button(m_statusGroup, SWT.PUSH);
         m_statusLoginLogoutButton.setText("  Logout  ");
-        m_statusLoginLogoutButton.setLayoutData(new GridData(SWT.RIGHT, SWT.BOTTOM, false, false, 1, 2));
+        m_statusLoginLogoutButton.setLayoutData(new GridData(SWT.RIGHT, SWT.BOTTOM, false, false));
         m_statusLoginLogoutButton.setVisible(false);
-
-        m_statusLogLabel = new Label(m_statusGroup, SWT.NONE);
-        m_statusLogLabel.setText("Log:");
-        m_statusLogLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false));
-        m_statusLogLink = new Link(m_statusGroup, SWT.BORDER);
-        m_statusLogLink.setText("<a>View debug log</a>");
-        m_statusLogLink.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
-        m_statusLogLink.addListener(SWT.Selection, event -> openKerberosLog());
 
         m_userPassHandler = new UserPasswordDialogCallbackHandler(parent.getShell());
     }
@@ -338,7 +345,8 @@ public class KerberosPreferencesStatusWidget {
             m_statusPrincipalValue.setText(state.getPrincipal());
             m_statusExpiresLabel.setVisible(true);
             m_statusExpiresValue.setVisible(true);
-            m_statusExpiresValue.setText(state.getTicketValidUntil().toString());
+            m_statusExpiresValue.setText(state.getTicketValidUntil().atZone(TimeZone.getDefault().toZoneId()).format(DATE_TIME_FORMATTER));
+
         } else {
             showStatusMessage("Not authenticated");
         }
