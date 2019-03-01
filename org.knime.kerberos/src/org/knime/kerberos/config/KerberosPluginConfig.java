@@ -111,11 +111,11 @@ public class KerberosPluginConfig {
      * @param keytabFile
      * @param doDebugLogging
      * @param debugLogLevel
-     * @param renewalSaftyMargin
+     * @param renewalSafetyMargin
      */
     public KerberosPluginConfig(final KerberosConfigSource confSource, final String kerberosConfFile,
         final String realm, final String kdc, final AuthMethod authMethod, final String keytabPrincipal,
-        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSaftyMargin) {
+        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSafetyMargin) {
 
         m_confSource = confSource;
         m_kerberosConfFile = cleanUp(kerberosConfFile);
@@ -126,7 +126,7 @@ public class KerberosPluginConfig {
         m_keytabFile = cleanUp(keytabFile);
         m_doDebugLogging = doDebugLogging;
         m_debugLogLevel = cleanUp(debugLogLevel);
-        m_renewalSafetyMarginSeconds = renewalSaftyMargin;
+        m_renewalSafetyMarginSeconds = renewalSafetyMargin;
         m_isTestConfiguration = false;
         m_ticketCache = null;
     }
@@ -380,7 +380,8 @@ public class KerberosPluginConfig {
             loadString(PrefKey.KERBEROS_CONF_FILE_KEY), loadString(PrefKey.KERBEROS_REALM_KEY),
             loadString(PrefKey.KERBEROS_KDC_KEY), AuthMethod.fromValue(loadString(PrefKey.AUTH_METHOD_KEY)),
             loadString(PrefKey.KEYTAB_PRINCIPAL_KEY), loadString(PrefKey.KEYTAB_FILE_KEY),
-            loadBoolean(PrefKey.DEBUG_KEY), loadString(PrefKey.DEBUG_LOG_LEVEL_KEY), loadLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY));
+            loadBoolean(PrefKey.DEBUG_KEY), loadString(PrefKey.DEBUG_LOG_LEVEL_KEY), loadLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY),
+            loadBoolean("testing"), loadString("testingTicketCache"));
     }
 
     /**
@@ -408,6 +409,10 @@ public class KerberosPluginConfig {
         saveBoolean(PrefKey.DEBUG_KEY, doDebugLogging());
         saveString(PrefKey.DEBUG_LOG_LEVEL_KEY, getDebugLogLevel());
         saveLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY, getRenewalSafetyMarginSeconds());
+        if (m_isTestConfiguration) {
+            saveBoolean("testing", true);
+            saveString("testingTicketCache", m_ticketCache);
+        }
     }
 
     /**

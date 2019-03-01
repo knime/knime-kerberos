@@ -51,6 +51,7 @@ package org.knime.kerberos.testing;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Properties;
@@ -100,7 +101,7 @@ public class KDC {
         kdcConf = MiniKdc.createConf();
         kdcConf.setProperty(MiniKdc.MAX_RENEWABLE_LIFETIME, "8640000");
         kdcConf.setProperty(MiniKdc.MAX_TICKET_LIFETIME, "60000");
-        kdcConf.setProperty(MiniKdc.MIN_TICKET_LIFETIME, "60000");
+        kdcConf.setProperty(MiniKdc.MIN_TICKET_LIFETIME, "60");
         m_kdc = new MiniKdc(kdcConf, m_kdcDir);
         m_kdc.start();
         m_kdcConfPath = m_kdc.getKrb5conf().getAbsolutePath();
@@ -134,7 +135,11 @@ public class KDC {
                 e.printStackTrace();
             }
         });
-        Files.delete(Paths.get(m_ccFile));
+        try {
+            Files.delete(Paths.get(m_ccFile));
+        } catch (NoSuchFileException e) {
+            // ignore
+        }
     }
 
     /**

@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.login.LoginException;
 
 import org.knime.core.node.NodeLogger.LEVEL;
@@ -121,18 +120,18 @@ public class KerberosInternalAPI {
      *
      */
     @SuppressWarnings("restriction")
-    public static Future<KerberosState> login(final KerberosPluginConfig config, final CallbackHandler handler) {
+    public static Future<KerberosState> login(final KerberosPluginConfig config, final KerberosUserPwdAuthCallbackHandler handler) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
 
             KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
             try {
                 if (KerberosAuthManager.getKerberosState().isAuthenticated()) {
-                    //No reauthentication.
+                    // No reauthentication.
                     throw new IllegalStateException("Still logged in. Please log out first.");
                 }
                 try {
                     KerberosAuthManager.configure(config);
-                    KerberosAuthManager.login(config, handler);
+                    KerberosAuthManager.login(handler);
                     return KerberosAuthManager.getKerberosState();
                 } catch (Exception e) {
                     KerberosAuthManager.rollbackToInitialState();

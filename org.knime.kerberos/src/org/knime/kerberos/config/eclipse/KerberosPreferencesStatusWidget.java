@@ -70,6 +70,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
+import org.knime.kerberos.ExceptionUtil;
 import org.knime.kerberos.KerberosInternalAPI;
 import org.knime.kerberos.api.KerberosProvider;
 import org.knime.kerberos.api.KerberosState;
@@ -366,38 +367,11 @@ public class KerberosPreferencesStatusWidget {
     }
 
     private void showStatusError(final Exception e) {
-        final String error = getDeepestErrorMessage(e, false);
+        final String error = ExceptionUtil.getDeepestErrorMessage(e, false);
         if (error != null) {
             showStatusMessage(error, getDisplay().getSystemColor(SWT.COLOR_RED));
         } else {
             showStatusMessage("An error occured (see Kerberos log)", getDisplay().getSystemColor(SWT.COLOR_RED));
-        }
-    }
-
-    /**
-     * Returns deepest non empty error message from the given exception and its cause stack.
-     *
-     * @param t A throwable, possibly with cause chain.
-     * @param appendType Whether to append the type of the deepest exception with non-empty error message to the
-     *            returned string.
-     * @return deepest non empty error message or null.
-     */
-    private static String getDeepestErrorMessage(final Throwable t, final boolean appendType) {
-        String deeperMsg = null;
-        if (t.getCause() != null) {
-            deeperMsg = getDeepestErrorMessage(t.getCause(), appendType);
-        }
-
-        if (deeperMsg != null && deeperMsg.length() > 0) {
-            return deeperMsg;
-        } else if (t.getMessage() != null && t.getMessage().length() > 0) {
-            if (appendType) {
-                return String.format("%s (%s)", t.getMessage(), t.getClass().getSimpleName());
-            } else {
-                return t.getMessage();
-            }
-        } else {
-            return null;
         }
     }
 

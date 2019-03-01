@@ -62,7 +62,6 @@ import java.time.Instant;
 import java.util.stream.Stream;
 
 import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
@@ -306,6 +305,22 @@ public class KerberosInternalAPITest {
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler("unknown", "wrong")));
+    }
+
+    /**
+     * Tests configuration with Realm & KDC and a callback handler that says the user cancelled the login.
+     * Expects UserRequestedCancelException
+     *
+     * @throws Throwable
+     */
+    @Test(expected = UserRequestedCancelException.class)
+    public void test_login_with_RealmKDC_and_user_cancelled_login() throws Throwable {
+
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
+            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+
+        assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
+        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler()));
     }
 
     /**
@@ -608,32 +623,33 @@ public class KerberosInternalAPITest {
 
 
     /**
-     * Test a renewal.
+     * Test a renewal with a renewable ticket from the ticket cache.
      *
      * @throws Exception
      */
     @Test
-    public void test_renewal() throws Exception {
+    public void test_renewal_with_renewable_ticket_from_ticket_cache() throws Exception {
         String kinit = "kinit";
-        if(System.getProperty("os.name").startsWith("Windows")) {
+        if (System.getProperty("os.name").startsWith("Windows")) {
             //Windows will try to use the java kinit if we do not point it to MIT specifically
-            String mitPath= Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
+            String mitPath =
+                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
             kinit = mitPath + File.separator + "kinit";
         }
-        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r" ,"4m" , "-c" , testKDC.getCcFile() ,  "-k", "-t" , testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
+        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", testKDC.getCcFile(), "-k", "-t",
+            testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
         pb.environment().put("KRB5CCNAME", testKDC.getCcFile());
         pb.environment().put("KRB5_CONFIG", testKDC.getKdcConfPath());
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         Process proc = pb.start();
         proc.waitFor();
-        if(proc.exitValue() != 0) {
+        if (proc.exitValue() != 0) {
             throw new RuntimeException("Could not obtain ticket via kinit");
         }
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "",
-            "", "", AuthMethod.TICKET_CACHE, "", "", true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, testKDC.getCcFile());
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "",
+            AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         Instant prevValidUntil = KerberosAuthManager.getKerberosState().getTicketValidUntil();
@@ -641,7 +657,36 @@ public class KerberosInternalAPITest {
 
         KerberosState afterState = KerberosAuthManager.getKerberosState();
         assertTrue(afterState.isAuthenticated());
-        assertTrue(!afterState.getTicketValidUntil().equals(prevValidUntil));
+        assertTrue(afterState.getTicketValidUntil().isAfter(prevValidUntil));
+    }
+
+    /**
+     * Test renewal when doing keytab authentication
+     *
+     * @throws Exception
+     */
+    @Test
+    public void test_renewal_with_keytab() throws Exception {
+        // ticket lifetime is 60 000 seconds (thanks MiniKDC) and renewalSafetyMargin is 59 995 seconds -> renewal should happen after 5s
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
+            createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 59995,
+            true, null);
+
+        assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
+        KerberosState currentState = Util.awaitFuture(KerberosInternalAPI.login(config, null));
+        Instant prevValidUntil = currentState.getTicketValidUntil();
+        Thread.sleep(7000);
+
+        currentState = KerberosAuthManager.getKerberosState();
+        assertTrue(currentState.isAuthenticated());
+        assertTrue(currentState.getTicketValidUntil().isAfter(prevValidUntil));
+        prevValidUntil = currentState.getTicketValidUntil();
+
+        Thread.sleep(5000);
+        currentState = KerberosAuthManager.getKerberosState();
+        assertTrue(currentState.isAuthenticated());
+        assertTrue(currentState.getTicketValidUntil().isAfter(prevValidUntil));
     }
 
     private static String createValidKrb5(final String realm, final String kdc) throws IOException {
@@ -728,10 +773,23 @@ public class KerberosInternalAPITest {
      *
      * @author Mareike Hoeger, KNIME GmbH, Konstanz, Germany
      */
-    public static class TestCallBackHandler implements CallbackHandler {
+    public static class TestCallBackHandler implements KerberosUserPwdAuthCallbackHandler {
+        private final boolean m_userCancelled;
+
         private final String m_user;
 
         private final String m_pwd;
+
+        /**
+         * Creates a Callback handler that says the user cancelled the login.s
+         *
+         */
+        public TestCallBackHandler() {
+            m_user = null;
+            m_pwd = null;
+            m_userCancelled = true;
+        }
+
 
         /**
          * Creates a Callback handler that answers with the given user and password
@@ -741,6 +799,7 @@ public class KerberosInternalAPITest {
         public TestCallBackHandler(final String user, final String pwd) {
             m_user = user;
             m_pwd = pwd;
+            m_userCancelled = false;
         }
 
         /**
@@ -760,5 +819,12 @@ public class KerberosInternalAPITest {
             }
         }
 
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean promptUser() {
+            return !m_userCancelled;
+        }
     }
 }

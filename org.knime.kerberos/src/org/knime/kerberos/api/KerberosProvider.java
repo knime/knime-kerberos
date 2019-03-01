@@ -63,7 +63,6 @@ import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.KerberosAuthManager;
 import org.knime.kerberos.config.KerberosPluginConfig;
-import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.logger.KerberosLogger;
 
 /**
@@ -113,27 +112,11 @@ public class KerberosProvider {
             try {
                 KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
 
-                if (!KerberosAuthManager.getKerberosState().isAuthenticated()) {
-                    if (config.getAuthMethod() == AuthMethod.USER_PWD) {
-                        throw new LoginException("Not logged in. Please login via the preference page first.");
-                    }
-                    try {
-                        KerberosAuthManager.configure(config);
-                        KerberosAuthManager.login(config);
-                    } catch (Exception e) {
-                        KerberosAuthManager.rollbackToInitialState();
-                        throw e;
-                    }
-                }
+                ensureAuthenticated(config);
 
                 final Subject subject = KerberosAuthManager.getSubject();
                 try {
-                    return Subject.doAs(subject, new PrivilegedExceptionAction<T>() {
-                        @Override
-                        public T run() throws Exception {
-                            return callback.doAuthenticated();
-                        }
-                    });
+                    return Subject.doAs(subject, (PrivilegedExceptionAction<T>)() -> callback.doAuthenticated());
                 } catch (PrivilegedActionException e) {
                     // unpack the exception that was thrown by the callback
                     throw (Exception)e.getCause();
@@ -142,6 +125,43 @@ public class KerberosProvider {
                 KerberosLogger.stopCapture();
             }
         });
+    }
+
+    private static void ensureAuthenticated(final KerberosPluginConfig config) throws Exception {
+        final boolean authenticated = KerberosAuthManager.getKerberosState().isAuthenticated();
+
+        switch (config.getAuthMethod()) {
+            case TICKET_CACHE:
+                if (authenticated && KerberosAuthManager.ticketCacheHasChanged()) {
+                    KerberosAuthManager.rollbackToInitialState();
+                    tryLogin(config);
+                } else if (!authenticated) {
+                    // throws exception if unsuccessful
+                    tryLogin(config);
+                }
+                break;
+            case KEYTAB:
+                if (!authenticated) {
+                    // throws exception if unsuccessful
+                    tryLogin(config);
+                }
+                break;
+            case USER_PWD:
+                if (!authenticated) {
+                    throw new LoginException("Not logged into Kerberos. Please login first.");
+                }
+                break;
+        }
+    }
+
+    private static void tryLogin(final KerberosPluginConfig config) throws Exception {
+        try {
+            KerberosAuthManager.configure(config);
+            KerberosAuthManager.login();
+        } catch (Exception e) {
+            KerberosAuthManager.rollbackToInitialState();
+            throw e;
+        }
     }
 
     /**

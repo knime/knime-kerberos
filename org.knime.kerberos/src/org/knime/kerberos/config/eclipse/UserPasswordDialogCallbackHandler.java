@@ -57,6 +57,7 @@ import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 
 import org.eclipse.jface.dialogs.TitleAreaDialog;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -65,6 +66,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.knime.kerberos.KerberosUserPwdAuthCallbackHandler;
 
 /**
  * {@link CallbackHandler} implementation that asks the user for a name and password in one dialog and remembers the
@@ -72,7 +74,7 @@ import org.eclipse.swt.widgets.Text;
  *
  * @author Sascha Wolke, KNIME GmbH
  */
-public class UserPasswordDialogCallbackHandler implements CallbackHandler {
+public class UserPasswordDialogCallbackHandler implements KerberosUserPwdAuthCallbackHandler {
 
     private final UserPasswordDialog m_dialog;
 
@@ -81,7 +83,7 @@ public class UserPasswordDialogCallbackHandler implements CallbackHandler {
      *
      * @param parentShell parent shell of the dialog
      */
-    protected UserPasswordDialogCallbackHandler(final Shell parentShell) {
+    public UserPasswordDialogCallbackHandler(final Shell parentShell) {
         m_dialog = new UserPasswordDialog(parentShell);
     }
 
@@ -157,13 +159,14 @@ public class UserPasswordDialogCallbackHandler implements CallbackHandler {
 
         void reset() {
             m_userAsked = false;
+            m_password = null;
         }
     }
 
     /**
      * Reset the dialog and ask the user again in next callback handle call.
      */
-    protected void reset() {
+    public void reset() {
         m_dialog.reset();
     }
 
@@ -178,5 +181,11 @@ public class UserPasswordDialogCallbackHandler implements CallbackHandler {
                 throw new UnsupportedCallbackException(callback);
             }
         }
+    }
+
+    @Override
+    public boolean promptUser() {
+        m_dialog.askUser();
+        return m_dialog.getReturnCode() == Window.OK;
     }
 }

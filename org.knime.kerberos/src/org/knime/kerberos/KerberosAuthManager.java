@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.RefreshFailedException;
 import javax.security.auth.Subject;
-import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.KerberosTicket;
 import javax.security.auth.login.LoginContext;
@@ -77,8 +77,11 @@ import org.knime.kerberos.api.KerberosState;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 
+import sun.security.jgss.krb5.Krb5Util;
 import sun.security.krb5.Config;
 import sun.security.krb5.KrbException;
+import sun.security.krb5.internal.ccache.Credentials;
+import sun.security.krb5.internal.ccache.CredentialsCache;
 
 /**
  * Stateful class that holds the current state of the Kerberos login and offers basic operations on top of this state,
@@ -114,6 +117,8 @@ public class KerberosAuthManager {
 
     private static KerberosState loginState = new KerberosState();
 
+    private static KerberosPluginConfig loginPluginConfig = null;
+
     private static LoginContext loginContext = null;
 
     private static ScheduledFuture<?> renewFuture = null;
@@ -121,6 +126,8 @@ public class KerberosAuthManager {
     private static Path tmpKrb5Conf = null;
 
     private static final  Map<String, String> systemPropertyBackup = new HashMap<>();
+
+    private static KerberosStateListener stateListener;
 
 
     private KerberosAuthManager() {
@@ -131,7 +138,7 @@ public class KerberosAuthManager {
      * It does a logout if necessary and resets system properties
      */
     public static void rollbackToInitialState() {
-        loginState = new KerberosState();
+        setLoginState(new KerberosState());
 
         try {
             if (loginContext != null) {
@@ -147,6 +154,7 @@ public class KerberosAuthManager {
         } finally {
             loginContext = null;
             renewFuture = null;
+            loginPluginConfig = null;
         }
 
         restoreSystemProperties();
@@ -215,6 +223,7 @@ public class KerberosAuthManager {
         // ! I/O
         Config.refresh();
         KerberosPluginConfigValidator.postRefreshValidate(config);
+        loginPluginConfig = config;
     }
 
     private static void validateConfigShallow(final KerberosPluginConfig config) {
@@ -283,15 +292,24 @@ public class KerberosAuthManager {
     }
 
     /**
-     * Attempts a login with the given configuration.
+     * @param loginState the loginState to set
+     */
+    private static void setLoginState(final KerberosState state) {
+        loginState = state;
+        if (stateListener != null) {
+            stateListener.kerberosStateChanged(state);
+        }
+    }
+
+    /**
+     * Attempts a login with the current configuration.
      *
      * If this method throws an error, then {@link #rollbackToInitialState()} must be called.
      *
-     * @param config the Configuration to use
      * @throws LoginException if the login fails
      */
-    public static void login(final KerberosPluginConfig config) throws LoginException {
-        login(config, null);
+    public static void login() throws LoginException {
+        login(null);
     }
 
     /**
@@ -299,48 +317,108 @@ public class KerberosAuthManager {
      *
      * If this method throws an error, then {@link #rollbackToInitialState()} must be called.
      *
-     * @param config the Configuration to use
      * @param handler the callbackHandler to use in case of user/password authentication
      * @throws LoginException if the login fails
      */
-    public static void login(final KerberosPluginConfig config, final CallbackHandler handler) throws LoginException {
-        LOG.info("Doing Kerberos login with config " + config.getConfigurationSummary());
+    public static void login(final KerberosUserPwdAuthCallbackHandler handler) throws LoginException {
+        LOG.info("Doing Kerberos login with config " + loginPluginConfig.getConfigurationSummary());
 
         final LoginContext tmpLoginContext =
-            new LoginContext("KNIMEKerberosLoginContext", null, handler, new KerberosJAASConfiguration(config));
+            new LoginContext("KNIMEKerberosLoginContext", null, handler, new KerberosJAASConfiguration(loginPluginConfig));
+
+        if (loginPluginConfig.getAuthMethod() == AuthMethod.USER_PWD) {
+            if (!handler.promptUser()) {
+                throw new UserRequestedCancelException();
+            }
+        }
         // try authentication
         tmpLoginContext.login();
         loginContext = tmpLoginContext;
-        loginState = createAuthenticatedKerberosState(config.getRenewalSafetyMarginSeconds());
+        setLoginState(createAuthenticatedKerberosState());
+        scheduleRenewal();
         LOG.info("Logged into Kerberos as " + loginState.toString());
     }
 
-    private static KerberosState createAuthenticatedKerberosState(final long renewalSafetyMarginSeconds) {
+    private static KerberosState createAuthenticatedKerberosState() {
         final Subject subject = loginContext.getSubject();
         final String principal = subject.getPrincipals(KerberosPrincipal.class).iterator().next().getName();
 
         final KerberosTicket tgt = subject.getPrivateCredentials(KerberosTicket.class).iterator().next();
         final Instant validUntil = tgt.getEndTime().toInstant();
-        scheduleRenewal(tgt, renewalSafetyMarginSeconds);
         return new KerberosState(principal, validUntil);
     }
 
-    private static void scheduleRenewal(final KerberosTicket tgt, final long renewalSafetyMarginSeconds) {
-        if(tgt.isRenewable()) {
-            long renewalMills = Math.max(tgt.getEndTime().getTime() - Instant.now().toEpochMilli() - renewalSafetyMarginSeconds*1000, 5000);
-            renewFuture = EXECUTOR.schedule(() -> {
-                    try {
-                        if(loginContext != null && loginContext.getSubject() != null) {
-                            final KerberosTicket ticket = loginContext.getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
-                            ticket.refresh();
-                            loginState = createAuthenticatedKerberosState(renewalSafetyMarginSeconds);
-                            LOG.info("Renewed Kerberos login for " + loginState.toString());
-                        }
-                    } catch (RefreshFailedException ex) {
-                        LOG.error(String.format("Could not renew Kerberos login: %s" , ex.getMessage()), ex);
-                        //Too bad. Nothing we can do
-                    }
-            }, renewalMills , TimeUnit.MILLISECONDS);
+    private static void scheduleRenewal() {
+        final KerberosTicket tgt =
+            loginContext.getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
+
+        long millisUntilRenewal;
+        if (tgt.isRenewable() || loginPluginConfig.getAuthMethod() == AuthMethod.KEYTAB) {
+            millisUntilRenewal = Math.max(
+                tgt.getEndTime().getTime() - Instant.now().toEpochMilli() - (loginPluginConfig.getRenewalSafetyMarginSeconds() * 1000), 5000);
+        } else {
+            // we can only let the current login expire and update the UI then
+            millisUntilRenewal = (int) Math
+                    .max(tgt.getEndTime().getTime() - Instant.now().toEpochMilli() + 1000, 1000);
+        }
+
+        LOG.debug(String.format("Scheduling login renewal in %d seconds", Duration.ofMillis(millisUntilRenewal).getSeconds()));
+        renewFuture = EXECUTOR.schedule(() -> {
+            try {
+                tryRenewLoginNonInteractively();
+            } catch (Exception e) {
+                LOG.error("Failed to fetch a new Kerberos ticket: " + ExceptionUtil.getDeepestErrorMessage(e, true), e);
+            }
+        }, millisUntilRenewal, TimeUnit.MILLISECONDS);
+
+    }
+
+    private static void tryRenewLoginNonInteractively() throws LoginException {
+        if (loginContext == null && loginContext.getSubject() == null) {
+            throw new IllegalStateException("Login renew failed due to missing LoginContext");
+        }
+
+        final KerberosTicket ticket =
+            loginContext.getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
+
+        if (ticket.isRenewable()) {
+            try {
+                ticket.refresh();
+                setLoginState(createAuthenticatedKerberosState());
+                scheduleRenewal();
+                LOG.info("Renewed Kerberos ticket for " + loginState.toString());
+                return;
+            } catch (RefreshFailedException ex) {
+                LOG.error(
+                    String.format("Could not renew Kerberos ticket (%s), trying to fetch a new ticket if possible",
+                        ExceptionUtil.getDeepestErrorMessage(ex, true)));
+                // Too bad, but there may be another we when we are using keytabs or a ticket cache
+            }
+        }
+
+        // ticket is not renewable, or renewal failed
+        switch (loginPluginConfig.getAuthMethod()) {
+            case KEYTAB:
+                // if this fails we throw an exception because there is nothing else we can do
+                login();
+                LOG.info("Fetched new Kerberos ticket for " + loginState.toString());
+                break;
+            case TICKET_CACHE:
+                if (ticketCacheHasChanged()) {
+                    login();
+                    LOG.info("Found new Kerberos ticket in ticket cache for " + loginState.toString());
+                } else {
+                    LOG.info("Kerberos login expired, hence logging out");
+                    rollbackToInitialState();
+                }
+                break;
+            case USER_PWD:
+                // we can only fetch a new ticket by prompting the user for a password.
+                // since this method is supposed to be non-interactive, we cannot do anything
+                // but rollback (to update the UI)
+                LOG.info("Kerberos login expired, hence logging out");
+                rollbackToInitialState();
+                break;
         }
     }
 
@@ -349,5 +427,44 @@ public class KerberosAuthManager {
      */
     public static Subject getSubject() {
         return loginContext.getSubject();
+    }
+
+
+    /**
+     * Registers the state listener and calls it once with the current Kerberos state.
+     *
+     * @param listener
+     */
+    public static void registerStateListener(final KerberosStateListener listener) {
+        stateListener = listener;
+        stateListener.kerberosStateChanged(loginState);
+    }
+
+
+    /**
+     * Checks whether the ticket cache outside of KNIME has changed. This method must only be called while we are
+     * authenticated based on a ticket cache.
+     *
+     * @return whether the ticket cache outside of KNIME has changed.
+     */
+    public static boolean ticketCacheHasChanged() {
+        if (!loginState.isAuthenticated() || loginPluginConfig.getAuthMethod() != AuthMethod.TICKET_CACHE) {
+            throw new IllegalStateException("Ticket-cache based Kerberos login required");
+        }
+
+        boolean toReturn = true;
+
+        final CredentialsCache cache = CredentialsCache.getInstance(CredentialsCache.cacheName());
+        if (cache != null) {
+            final Credentials creds = cache.getDefaultCreds();
+            if (creds != null) {
+                final KerberosTicket tgt = getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
+                if (Krb5Util.credsToTicket(creds.setKrbCreds()).equals(tgt)) {
+                    toReturn = false;
+                }
+            }
+        }
+
+        return toReturn;
     }
 }
