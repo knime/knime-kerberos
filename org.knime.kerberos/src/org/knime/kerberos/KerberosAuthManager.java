@@ -100,7 +100,7 @@ public class KerberosAuthManager {
     /**
      * Singlethread Executor for the method invocations.
      */
-    public static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor((r) -> new Thread(r, "KerberosWorker"));
+    public static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor((r) -> { Thread t = new Thread(r, "KerberosWorker"); t.setDaemon(true); return t;});
 
     private static final  Logger LOG = Logger.getLogger(KerberosAuthManager.class);
 
