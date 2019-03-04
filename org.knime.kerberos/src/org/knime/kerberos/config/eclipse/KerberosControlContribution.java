@@ -251,4 +251,9 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             m_text.getMenu().getItem(0).setEnabled(true);
         });
     }
+
+    @Override
+    public boolean isDynamic() {
+        return true;
+    }
 }
