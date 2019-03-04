@@ -270,7 +270,10 @@ public class KerberosAuthManager {
         sb.append(String.format("dns_lookup_kdc = false%n"));
         sb.append(String.format("dns_lookup_realm = false%n%n"));
         sb.append(String.format("[realms]%n"));
-        sb.append(String.format("%s = { %n kdc = %s%n }", config.getRealm(), config.getKDC()));
+        sb.append(String.format("%s = { %n kdc = %s%n ", config.getRealm(), config.getKDC()));
+        //Setting the KDC timeout to 5 seconds and retries to 2, to avoid long waits in worker thread
+        sb.append(String.format( "max_retries = %d%n", 2));
+        sb.append(String.format( "kdc_timeout = %d%n }", 5000));
         Path configFile = Files.createTempFile("krb", ".conf");
         Files.write(configFile, sb.toString().getBytes(), StandardOpenOption.WRITE);
         return configFile;
