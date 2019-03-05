@@ -105,6 +105,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
     @Override
     protected Control createControl(final Composite parent) {
         m_userPasswordCallbackHandler = new UserPasswordDialogCallbackHandler(parent.getShell());
+        parent.getParent().setRedraw(true);
 
         m_composite = new Composite(parent, SWT.NONE);
         GridLayout layout = new GridLayout(2, false);
