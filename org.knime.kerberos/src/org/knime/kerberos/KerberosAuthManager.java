@@ -115,7 +115,8 @@ public class KerberosAuthManager {
     private static final  List<String> SYS_PROPS = Collections.unmodifiableList(Arrays.asList(SYSTEM_PROPERTY_KDC,
         SYSTEM_PROPERTY_REALM, SYSTEM_PROPERTY_KRB5_CONF, SYSTEM_PROPERTY_PRINCIPAL));
 
-    private static KerberosState loginState = new KerberosState();
+    // this is volatile because it will be read directly by arbitrary threads via KerberosProvier.getKerberosState()
+    private static volatile KerberosState loginState = new KerberosState();
 
     private static KerberosPluginConfig loginPluginConfig = null;
 
@@ -283,14 +284,6 @@ public class KerberosAuthManager {
      * @return the current loginState
      */
     public static KerberosState getKerberosState() {
-        if (loginState.isAuthenticated()) {
-            final Subject subject = loginContext.getSubject();
-            final KerberosTicket tgt = subject.getPrivateCredentials(KerberosTicket.class).iterator().next();
-            if (!tgt.isCurrent()) {
-                rollbackToInitialState();
-            }
-        }
-
         return loginState;
     }
 

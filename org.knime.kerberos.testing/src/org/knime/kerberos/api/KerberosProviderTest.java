@@ -152,7 +152,7 @@ public class KerberosProviderTest {
     }
 
     private static void assertAuthenticated(final String principal) throws Exception {
-        final KerberosState state = Util.awaitFuture(KerberosProvider.getKerberosState());
+        final KerberosState state = KerberosProvider.getKerberosState();
         assertTrue(state.isAuthenticated());
         assertEquals(principal, state.getPrincipal());
         assertFalse(KerberosLogger.getCapturedLines().isEmpty());
@@ -479,7 +479,7 @@ public class KerberosProviderTest {
      * @throws IOException
      * @throws InterruptedException
      */
-    private void deleteTicketCache() throws IOException, InterruptedException {
+    private static void deleteTicketCache() throws IOException, InterruptedException {
         Files.delete(Paths.get(testKDC.getCcFile()));
     }
 
@@ -487,7 +487,7 @@ public class KerberosProviderTest {
      * @throws IOException
      * @throws InterruptedException
      */
-    private void createTicketCacheWithKinit() throws IOException, InterruptedException {
+    private static void createTicketCacheWithKinit() throws IOException, InterruptedException {
         String kinit = "kinit";
         if(System.getProperty("os.name").startsWith("Windows")) {
             //Windows will try to use the java kinit if we do not point it to MIT specifically

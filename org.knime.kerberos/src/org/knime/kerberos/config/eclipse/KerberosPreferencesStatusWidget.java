@@ -221,8 +221,8 @@ public class KerberosPreferencesStatusWidget {
      */
     protected void loadKerberosState() {
         m_workerThread = new BackgroundWorker(false, "Load current state", () -> {
-            Future<KerberosState> future = KerberosProvider.getKerberosState();
-            handleStateFuture(future, false);
+            KerberosState state = KerberosProvider.getKerberosState();
+            updateButtons(state);
         });
         m_workerThread.start();
     }
@@ -285,10 +285,7 @@ public class KerberosPreferencesStatusWidget {
         try {
             KerberosState state = future.get();
 
-            getDisplay().asyncExec(() -> {
-                updateStatus(state);
-                showNormalStatusButtons(state.isAuthenticated());
-            });
+            updateButtons(state);
         } catch (InterruptedException e) {
             future.cancel(true);
             Thread.currentThread().interrupt();
@@ -298,6 +295,13 @@ public class KerberosPreferencesStatusWidget {
                 showNormalStatusButtons(wasAuthenticated);
             });
         }
+    }
+
+    private void updateButtons(final KerberosState state) {
+        getDisplay().asyncExec(() -> {
+            updateStatus(state);
+            showNormalStatusButtons(state.isAuthenticated());
+        });
     }
 
     private static void updateStatusButton(final Button button, final String text, final Listener listener) {

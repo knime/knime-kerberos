@@ -81,21 +81,8 @@ public class KerberosProvider {
     /**
      * @return a Future that provides the current {@link KerberosState}.
      */
-    public static Future<KerberosState> getKerberosState() {
-        return KerberosAuthManager.EXECUTOR.submit(KerberosAuthManager::getKerberosState);
-    }
-
-    /**
-     * @return the current {@link KerberosState}
-     */
-    public static KerberosState getKerberosStateBlocking() {
-        try {
-            return getFutureResult(getKerberosState(), null);
-        } catch (Exception e) {
-            // should never happen, but this operation cannot be cancelled and does not throw
-            // any exception by itself
-            throw new IllegalStateException(e);
-        }
+    public static KerberosState getKerberosState() {
+        return KerberosAuthManager.getKerberosState();
     }
 
     /**
