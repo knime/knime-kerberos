@@ -264,7 +264,8 @@ public class KerberosAuthManager {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("[libdefaults]%n"));
         sb.append(String.format("default_realm = %s%n", config.getRealm()));
-        //FIXME The MiniKDC runs only with TCP. Java sun.security.krb5 does not try TCP if UDP fails. We may want to do this configurable.
+        //The MiniKDC runs only with TCP. Java sun.security.krb5 does not try TCP if UDP fails. Used for testing only for now
+        //We may want to do this configurable in the future.
         if(config.isTestConfiguration()) {
             sb.append(String.format("\tudp_preference_limit = 1%n"));
         }
