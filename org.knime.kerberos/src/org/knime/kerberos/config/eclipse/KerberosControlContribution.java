@@ -253,8 +253,4 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
         });
     }
 
-    @Override
-    public boolean isDynamic() {
-        return true;
-    }
 }
