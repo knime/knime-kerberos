@@ -81,12 +81,20 @@ public class NodeLoggerOutputStreamBuffer extends OutputStream {
         m_closed = true;
     }
 
+    /**
+     * Opens the stream for the given log forwarder
+     * @param logForwarder
+     */
     public void open(final LogForwarder logForwarder) {
         m_lineBuffer.clear();
         m_logForwarder = logForwarder;
         m_closed = false;
     }
 
+    /**
+     * Returns the buffered log lines as a list of strings
+     * @return the buffered lines
+     */
     public List<String> getBufferedLines() {
         return new ArrayList<String>(m_lineBuffer);
     }

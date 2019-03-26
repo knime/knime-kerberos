@@ -77,8 +77,8 @@ public class KerberosLogger {
     /**
      * Enable or disable the Kerberos logging.
      *
-     * @param enable <code>true</code> if logging should be enabled
-     * @param level
+     * @param forwardToKNIMELog <code>true</code> if logging should be enabled
+     * @param knimeLogLevel the log Level
      */
     public static synchronized void startCapture(final boolean forwardToKNIMELog, final LEVEL knimeLogLevel) {
         if (testingLogForwarder != null) {
@@ -97,6 +97,9 @@ public class KerberosLogger {
         System.setProperty("sun.security.jgss.debug", "true");
     }
 
+    /**
+     * Stops the capturing of the log
+     */
     public static synchronized void stopCapture() {
         System.setProperty("sun.security.krb5.debug", "false");
         System.setProperty("sun.security.jgss.debug", "false");
@@ -108,10 +111,17 @@ public class KerberosLogger {
         origSysOut = null;
     }
 
+    /**
+     * @return gets the captured lines as a list of strings
+     */
     public static synchronized List<String> getCapturedLines() {
         return BUFFER.getBufferedLines();
     }
 
+    /**
+     * Sets whether the log should be forwarded for test
+     * @param logForwarder the log forwarder to forward to
+     */
     public synchronized static void setLogForwarderForTesting(final LogForwarder logForwarder) {
         testingLogForwarder = logForwarder;
     }

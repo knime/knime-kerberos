@@ -56,6 +56,10 @@ package org.knime.kerberos.logger;
  */
 public interface LogForwarder {
 
+    /**
+     * Forwards the given log message
+     * @param msg the message to forward
+     */
     void forwardLine(String msg);
 
 }
