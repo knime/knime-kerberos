@@ -76,5 +76,6 @@ public class PrefInitializer extends AbstractPreferenceInitializer {
         preferenceStore.setDefault(PrefKey.DEBUG_KEY, PrefKey.DEBUG_DEFAULT);
         preferenceStore.setDefault(PrefKey.DEBUG_LOG_LEVEL_KEY, PrefKey.DEBUG_LOG_LEVEL_DEFAULT);
         preferenceStore.setDefault(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY, PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT);
+        preferenceStore.setDefault(PrefKey.SHOW_ICON_KEY, PrefKey.SHOW_ICON_DEFAULT);
     }
 }

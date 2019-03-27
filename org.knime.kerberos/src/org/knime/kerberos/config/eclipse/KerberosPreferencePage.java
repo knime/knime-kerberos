@@ -66,6 +66,7 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.knime.kerberos.KerberosInternalAPI;
 import org.knime.kerberos.KerberosPlugin;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey;
@@ -103,6 +104,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
     private KerberosPreferencesStatusWidget m_statusWidget;
 
     private long m_renewalSafetyMarginSeconds;
+    private Button m_loginIconEnableButton;
 
     @Override
     public void init(final IWorkbench workbench) {
@@ -177,6 +179,16 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
         m_debugErrorButton = new Button(debugGroup, SWT.RADIO);
         m_debugErrorButton.setText("ERROR");
         m_debugErrorButton.addListener(SWT.Selection, this);
+
+        /////////////// Status Bar ///////////////
+        Group statusBarGroup = new Group(mainContainer, SWT.NONE);
+        statusBarGroup.setText("Status Bar");
+        statusBarGroup.setLayout(new GridLayout(1, false));
+        statusBarGroup.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+
+        m_loginIconEnableButton = new Button(statusBarGroup, SWT.CHECK);
+        m_loginIconEnableButton.setText("Permanently enable login status bar");
+        m_loginIconEnableButton.addListener(SWT.Selection, this);
 
 
         /////////////// Status/Validate/Login/Logout ///////////////
@@ -255,7 +267,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
         m_debugErrorButton.setSelection(config.getDebugLogLevel().equalsIgnoreCase("ERROR"));
 
         m_renewalSafetyMarginSeconds = config.getRenewalSafetyMarginSeconds();
-
+        m_loginIconEnableButton.setSelection(config.showIcon());
         updateInputEnabledState();
         validateInputFields(loadFieldsIntoConfig());
     }
@@ -272,7 +284,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
             getConfigSource(), m_configFileInput.getText(), m_configRealmInput.getText(), m_configKDCInput.getText(),
             getAuthMethod(), m_authKeytabPrincipalInput.getText(), m_authKeytabFileInput.getText(),
             m_debugEnableButton.getSelection(), getDebugLevel(),
-            m_renewalSafetyMarginSeconds);
+            m_renewalSafetyMarginSeconds, m_loginIconEnableButton.getSelection());
     }
 
     private KerberosConfigSource getConfigSource() {
@@ -366,6 +378,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
         m_debugInfoButton.setEnabled(m_debugEnableButton.getSelection());
         m_debugWarnButton.setEnabled(m_debugEnableButton.getSelection());
         m_debugErrorButton.setEnabled(m_debugEnableButton.getSelection());
+
     }
 
     @Override
@@ -377,6 +390,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
     @Override
     protected void performDefaults() {
         loadConfigIntoFields(KerberosPluginConfig.defaults());
+        m_loginIconEnableButton.setSelection(false);
         super.performDefaults();
     }
 
@@ -384,6 +398,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
     protected void performApply() {
         final KerberosPluginConfig config = loadFieldsIntoConfig();
         config.save();
+        KerberosInternalAPI.showKerberosStatusIcon(m_loginIconEnableButton.getSelection());
     }
 
     @Override
@@ -394,7 +409,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
             final KerberosPluginConfig config = loadFieldsIntoConfig();
             config.save();
         }
-
+        KerberosInternalAPI.showKerberosStatusIcon(m_loginIconEnableButton.getSelection());
         return statusWidgetResult;
     }
 

@@ -160,4 +160,12 @@ public class KerberosInternalAPI {
             }
         });
     }
+
+    /**
+     * @param showIcon
+     */
+    public static void showKerberosStatusIcon(final boolean showIcon) {
+        KerberosAuthManager.showKerberosStatusIcon(showIcon);
+    }
+
 }

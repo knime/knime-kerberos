@@ -63,4 +63,11 @@ public interface KerberosStateListener {
      * @param newState The new {@link KerberosState}.
      */
     void kerberosStateChanged(final KerberosState newState);
+
+    /**
+     * Sets whether the status bar kerberos icon is visible
+     *
+     * @param showIcon
+     */
+    void showKerberosStatusIcon(final boolean showIcon);
 }

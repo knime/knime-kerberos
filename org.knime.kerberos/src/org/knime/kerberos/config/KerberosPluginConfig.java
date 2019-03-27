@@ -98,6 +98,8 @@ public class KerberosPluginConfig {
 
     private final long m_renewalSafetyMarginSeconds;
 
+    private final boolean m_showIcon;
+
     /**
      * Creates a new instance. All String parameters are sanitized, i.e. empty strings or those only containing
      * whitespaces mapped to null.
@@ -112,10 +114,12 @@ public class KerberosPluginConfig {
      * @param doDebugLogging
      * @param debugLogLevel
      * @param renewalSafetyMargin
+     * @param showIcon
      */
     public KerberosPluginConfig(final KerberosConfigSource confSource, final String kerberosConfFile,
         final String realm, final String kdc, final AuthMethod authMethod, final String keytabPrincipal,
-        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSafetyMargin) {
+        final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSafetyMargin,
+        final boolean showIcon) {
 
         m_confSource = confSource;
         m_kerberosConfFile = cleanUp(kerberosConfFile);
@@ -129,6 +133,7 @@ public class KerberosPluginConfig {
         m_renewalSafetyMarginSeconds = renewalSafetyMargin;
         m_isTestConfiguration = false;
         m_ticketCache = null;
+        m_showIcon = showIcon;
     }
 
     /**
@@ -145,13 +150,14 @@ public class KerberosPluginConfig {
      * @param doDebugLogging
      * @param debugLogLevel
      * @param renewalSaftyMargin
+     * @param showIcon
      * @param isTestConfiguration
      * @param ticketCache Path to ticket cache when using TICKET_CACHE authentication (only for unit-testing)
      */
     public KerberosPluginConfig(final KerberosConfigSource confSource, final String kerberosConfFile,
         final String realm, final String kdc, final AuthMethod authMethod, final String keytabPrincipal,
         final String keytabFile, final boolean doDebugLogging, final String debugLogLevel, final long renewalSaftyMargin,
-        final boolean isTestConfiguration, final String ticketCache) {
+        final boolean showIcon, final boolean isTestConfiguration, final String ticketCache) {
 
         m_confSource = confSource;
         m_kerberosConfFile = cleanUp(kerberosConfFile);
@@ -163,6 +169,7 @@ public class KerberosPluginConfig {
         m_doDebugLogging = doDebugLogging;
         m_debugLogLevel = cleanUp(debugLogLevel);
         m_renewalSafetyMarginSeconds = renewalSaftyMargin;
+        m_showIcon = showIcon;
         m_isTestConfiguration = isTestConfiguration;
         m_ticketCache = ticketCache;
     }
@@ -307,6 +314,13 @@ public class KerberosPluginConfig {
         return m_isTestConfiguration;
     }
 
+    /**
+     * @return the showIcon
+     */
+    public boolean showIcon() {
+        return m_showIcon;
+    }
+
     private static String loadString(final String key) {
         if (TEST_OVERRIDES != null) {
             return TEST_OVERRIDES.get(key);
@@ -381,7 +395,7 @@ public class KerberosPluginConfig {
             loadString(PrefKey.KERBEROS_KDC_KEY), AuthMethod.fromValue(loadString(PrefKey.AUTH_METHOD_KEY)),
             loadString(PrefKey.KEYTAB_PRINCIPAL_KEY), loadString(PrefKey.KEYTAB_FILE_KEY),
             loadBoolean(PrefKey.DEBUG_KEY), loadString(PrefKey.DEBUG_LOG_LEVEL_KEY), loadLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY),
-            loadBoolean("testing"), loadString("testingTicketCache"));
+            loadBoolean(PrefKey.SHOW_ICON_KEY), loadBoolean("testing"), loadString("testingTicketCache"));
     }
 
     /**
@@ -392,7 +406,7 @@ public class KerberosPluginConfig {
             PrefKey.KERBEROS_CONF_FILE_DEFAULT, PrefKey.KERBEROS_REALM_DEFAULT, PrefKey.KERBEROS_KDC_DEFAULT,
             AuthMethod.fromValue(PrefKey.AUTH_METHOD_DEFAULT), PrefKey.KEYTAB_PRINCIPAL_DEFAULT,
             PrefKey.KEYTAB_FILE_DEFAULT, PrefKey.DEBUG_DEFAULT, PrefKey.DEBUG_LOG_LEVEL_DEFAULT,
-            PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT);
+            PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT, PrefKey.SHOW_ICON_DEFAULT);
     }
 
     /**
@@ -409,6 +423,7 @@ public class KerberosPluginConfig {
         saveBoolean(PrefKey.DEBUG_KEY, doDebugLogging());
         saveString(PrefKey.DEBUG_LOG_LEVEL_KEY, getDebugLogLevel());
         saveLong(PrefKey.RENEWAL_SAFETY_MARGIN_SECONDS_KEY, getRenewalSafetyMarginSeconds());
+        saveBoolean(PrefKey.SHOW_ICON_KEY, showIcon());
         if (m_isTestConfiguration) {
             saveBoolean("testing", true);
             saveString("testingTicketCache", m_ticketCache);

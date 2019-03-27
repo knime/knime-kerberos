@@ -197,4 +197,10 @@ public class PrefKey {
     /** Default value for the Kerberos  renewal safety margin. */
     public static final  long RENEWAL_SAFETY_MARGIN_SECONDS_DEFAULT = 180;
 
+    /** Preference key for the Kerberos show icon setting. */
+    public static final  String SHOW_ICON_KEY = "org.knime.kerberos.showIcon";
+
+    /** Default value for the Kerberos show icon setting. */
+    public static final  boolean SHOW_ICON_DEFAULT = false;
+
 }

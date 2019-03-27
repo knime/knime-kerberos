@@ -97,6 +97,7 @@ public class KerberosProvider {
             final KerberosPluginConfig config = KerberosPluginConfig.load();
 
             try {
+                KerberosAuthManager.showKerberosStatusIcon(true);
                 KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
 
                 ensureAuthenticated(config);

@@ -464,4 +464,12 @@ public class KerberosAuthManager {
 
         return toReturn;
     }
+
+    /**
+     * @param showIcon
+     */
+    public static void showKerberosStatusIcon(final boolean showIcon) {
+        stateListener.showKerberosStatusIcon(showIcon);
+    }
+
 }

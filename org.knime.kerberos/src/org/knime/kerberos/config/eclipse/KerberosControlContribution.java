@@ -73,10 +73,12 @@ import org.eclipse.ui.menus.WorkbenchWindowControlContribution;
 import org.knime.kerberos.ExceptionUtil;
 import org.knime.kerberos.KerberosAuthManager;
 import org.knime.kerberos.KerberosInternalAPI;
+import org.knime.kerberos.KerberosPlugin;
 import org.knime.kerberos.KerberosStateListener;
 import org.knime.kerberos.UserRequestedCancelException;
 import org.knime.kerberos.api.KerberosState;
 import org.knime.kerberos.config.KerberosPluginConfig;
+import org.knime.kerberos.config.PrefKey;
 import org.osgi.framework.FrameworkUtil;
 
 /**
@@ -99,43 +101,51 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
 
     private Label m_text;
 
+    private Composite m_toolbar;
+
     /**
      * {@inheritDoc}
      */
     @Override
     protected Control createControl(final Composite parent) {
-        m_userPasswordCallbackHandler = new UserPasswordDialogCallbackHandler(parent.getShell());
-        parent.getParent().setRedraw(true);
+        if (m_composite == null) {
+            m_userPasswordCallbackHandler = new UserPasswordDialogCallbackHandler(parent.getShell());
+            parent.getParent().setRedraw(true);
 
-        m_composite = new Composite(parent, SWT.NONE);
-        GridLayout layout = new GridLayout(2, false);
-        layout.marginHeight = 0;
-        layout.marginWidth = 0;
-        layout.marginTop = -1;
-        m_composite.setLayout(layout);
-        m_icon = new Label(m_composite, SWT.CENTER);
-        addInteractions(m_icon);
+            m_toolbar = parent.getParent();
+            m_composite = new Composite(parent, SWT.NONE);
 
-        GridData gdata = new GridData(SWT.FILL, SWT.FILL, false, false, 1, 1);
-        gdata.widthHint = 110;
-        m_text = new Label(m_composite, SWT.CENTER);
-        m_text.setLayoutData(gdata);
-        addInteractions(m_text);
-        try {
-            File bundle = FileLocator.getBundleFile(FrameworkUtil.getBundle(getClass()));
-            File kerberos = new File(bundle, "icons/kerberos-login.png");
-            m_kerberos = createImage(kerberos.getAbsolutePath(), parent);
-            File kerberosIn = new File(bundle, "icons/kerberos-logged-in.png");
-            m_kerberosIn = createImage(kerberosIn.getAbsolutePath(), parent);
-            m_icon.setImage(m_kerberos);
+            GridLayout layout = new GridLayout(2, false);
+            layout.marginHeight = 0;
+            layout.marginWidth = 0;
+            layout.marginTop = -1;
+            m_composite.setLayout(layout);
+            m_icon = new Label(m_composite, SWT.CENTER);
+            addInteractions(m_icon);
 
-        } catch (IOException e) {
-            LOG.error("Error loading icons", e);
+            GridData gdata = new GridData(SWT.FILL, SWT.FILL, false, false, 1, 1);
+            gdata.widthHint = 110;
+            m_text = new Label(m_composite, SWT.CENTER);
+            m_text.setLayoutData(gdata);
+            addInteractions(m_text);
+            try {
+                File bundle = FileLocator.getBundleFile(FrameworkUtil.getBundle(getClass()));
+                File kerberos = new File(bundle, "icons/kerberos-login.png");
+                m_kerberos = createImage(kerberos.getAbsolutePath(), parent);
+                File kerberosIn = new File(bundle, "icons/kerberos-logged-in.png");
+                m_kerberosIn = createImage(kerberosIn.getAbsolutePath(), parent);
+                m_icon.setImage(m_kerberos);
+
+            } catch (IOException e) {
+                LOG.error("Error loading icons", e);
+            }
+
+            m_composite.setEnabled(true);
+
+            KerberosAuthManager.registerStateListener(this);
+            showKerberosStatusIcon(KerberosPlugin.getDefault().getPreferenceStore().getBoolean(PrefKey.SHOW_ICON_KEY));
         }
 
-        m_composite.setEnabled(true);
-
-        KerberosAuthManager.registerStateListener(this);
         return m_composite;
     }
 
@@ -251,6 +261,17 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             m_text.getMenu().getItem(0).setText("Logout");
             m_text.getMenu().getItem(0).setEnabled(true);
         });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void showKerberosStatusIcon(final boolean showIcon) {
+        m_toolbar.setVisible(showIcon);
+
+       getWorkbenchWindow().getShell().layout();
+
     }
 
 }
