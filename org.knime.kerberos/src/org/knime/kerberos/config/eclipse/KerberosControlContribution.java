@@ -103,6 +103,10 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
 
     private Composite m_toolbar;
 
+    private Thread m_loginWorkerThread;
+
+    private boolean m_cancled;
+
     /**
      * {@inheritDoc}
      */
@@ -176,26 +180,40 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
     }
 
     private void triggerLoginToggle() {
-        m_icon.getMenu().getItem(0).setEnabled(false);
-        m_text.getMenu().getItem(0).setEnabled(false);
+
         if (m_icon.getMenu().getItem(0).getText().equals("Login")) {
+            m_icon.getMenu().getItem(0).setText("Cancel");
+            m_text.getMenu().getItem(0).setText("Cancel");
             KerberosControlContribution.this.m_text.setText("Logging in...");
             startLoginTask();
-        } else {
+        } else if(m_icon.getMenu().getItem(0).getText().equals("Cancel")) {
+            if (m_loginWorkerThread.isAlive()) {
+                m_cancled = true;
+                m_loginWorkerThread.interrupt();
+            }
+        }else {
+            m_icon.getMenu().getItem(0).setEnabled(false);
+            m_text.getMenu().getItem(0).setEnabled(false);
             KerberosControlContribution.this.m_text.setText("Logging out...");
             startLogoutTask();
         }
     }
 
     private void startLoginTask() {
-        new Thread(() -> {
+        m_loginWorkerThread = new Thread(() -> {
             try {
                 KerberosInternalAPI.login(KerberosPluginConfig.load(), m_userPasswordCallbackHandler).get();
             } catch (Exception e) {
                 displayLoggedOutState();
-
-                // only show an error when the user did not cancel the login
-                if (!(e.getCause() instanceof UserRequestedCancelException)) {
+                if ((e instanceof InterruptedException) && m_cancled) {
+                    m_cancled = false;
+                    Display.getDefault().asyncExec(() -> {
+                        MessageDialog.openError(Display.getCurrent().getActiveShell(), "Login canceled",
+                            "Kerberos login canceled.");
+                    });
+                }
+                // only show an error when the user did not cancel the login in prompt
+                else if (!(e.getCause() instanceof UserRequestedCancelException)) {
                     LOG.error("Kerberos login failed: " + e.getMessage(), e);
                     Display.getDefault().asyncExec(() -> {
                         MessageDialog.openError(Display.getCurrent().getActiveShell(), "Login failed",
@@ -205,7 +223,8 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             } finally {
                 m_userPasswordCallbackHandler.reset();
             }
-        }).start();
+        });
+         m_loginWorkerThread.start();
     }
 
     private static void startLogoutTask() {
@@ -261,6 +280,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             m_text.getMenu().getItem(0).setText("Logout");
             m_text.getMenu().getItem(0).setEnabled(true);
         });
+        m_cancled = false;
     }
 
     /**
