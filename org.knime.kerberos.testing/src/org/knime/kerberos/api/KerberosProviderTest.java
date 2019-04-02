@@ -123,7 +123,6 @@ public class KerberosProviderTest {
         testKDC.stop();
     }
 
-
     /**
      * Setup for each individual test method.
      */
@@ -184,8 +183,9 @@ public class KerberosProviderTest {
      */
     @Test
     public void test_doWithKerberosAuth_userPwd_and_already_logged_in() throws Exception {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         config.save();
 
         KerberosInternalAPI.login(config, new TestCallBackHandler(KDC.USER, KDC.PWD));
@@ -206,8 +206,9 @@ public class KerberosProviderTest {
      */
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_userPwd_but_not_logged_in() throws Exception {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         config.save();
 
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
@@ -217,15 +218,16 @@ public class KerberosProviderTest {
     }
 
     /**
-     * Assert failure in KerberosProvider.doWithKerberosAuth(), when TICKET_CACHE auth is configured but there is not ticket
-     * cache. Throws LoginException("Unable to obtain Principal Name for authentication")
+     * Assert failure in KerberosProvider.doWithKerberosAuth(), when TICKET_CACHE auth is configured but there is not
+     * ticket cache. Throws LoginException("Unable to obtain Principal Name for authentication")
      *
      * @throws Exception
      */
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_with_missing_ticketCache() throws Exception {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         config.save();
 
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
@@ -261,8 +263,9 @@ public class KerberosProviderTest {
      */
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuthBlocking_userPwd_but_not_logged_in() throws Exception {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         config.save();
 
         KerberosProvider.doWithKerberosAuthBlocking(() -> {
@@ -359,7 +362,7 @@ public class KerberosProviderTest {
         config.save();
 
         for (int i = 0; i < 10; i++) {
-            final ExecutionMonitor exec = mockExecMonitor(1 + (i/5) * 1);
+            final ExecutionMonitor exec = mockExecMonitor(1 + (i / 5) * 1);
             testCancellation(exec, false, -1);
         }
     }
@@ -420,9 +423,9 @@ public class KerberosProviderTest {
 
         createTicketCacheWithKinit();
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "",
-            "", "", AuthMethod.TICKET_CACHE, "", "", true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, testKDC.getCcFile());
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, false, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
@@ -452,9 +455,9 @@ public class KerberosProviderTest {
 
         createTicketCacheWithKinit();
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "",
-            "", "", AuthMethod.TICKET_CACHE, "", "", true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, testKDC.getCcFile());
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, false, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
@@ -474,7 +477,6 @@ public class KerberosProviderTest {
         assertTrue(KerberosAuthManager.getKerberosState().getTicketValidUntil().isAfter(expiryTime));
     }
 
-
     /**
      * @throws IOException
      * @throws InterruptedException
@@ -489,27 +491,29 @@ public class KerberosProviderTest {
      */
     private static void createTicketCacheWithKinit() throws IOException, InterruptedException {
         String kinit = "kinit";
-        if(System.getProperty("os.name").startsWith("Windows")) {
+        if (System.getProperty("os.name").startsWith("Windows")) {
             //Windows will try to use the java kinit if we do not point it to MIT specifically
-            String mitPath= Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
+            String mitPath =
+                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
             kinit = mitPath + File.separator + "kinit";
         }
-        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r" ,"4m" , "-c" , testKDC.getCcFile() ,  "-k", "-t" , testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
+        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", testKDC.getCcFile(), "-k", "-t",
+            testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
         pb.environment().put("KRB5CCNAME", testKDC.getCcFile());
         pb.environment().put("KRB5_CONFIG", testKDC.getKdcConfPath());
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         Process proc = pb.start();
         proc.waitFor();
-        if(proc.exitValue() != 0) {
+        if (proc.exitValue() != 0) {
             throw new RuntimeException("Could not obtain ticket via kinit");
         }
     }
 
     private static KerberosPluginConfig createKeytabKerberosConfig() {
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "",
-            "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "",
+            AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         return config;
     }
 }

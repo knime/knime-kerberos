@@ -96,7 +96,6 @@ public class KerberosInternalAPITest {
 
     private LogForwarder m_mockedLogForwarder;
 
-
     /**
      * Sets up a test testKDC.
      *
@@ -172,16 +171,16 @@ public class KerberosInternalAPITest {
     @Test
     public void test_login_with_defaults_and_keytab() throws Throwable {
         // krb5.conf is set by miniKDC so we should have a defaults environment
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.KEYTAB,
-                testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "",
+            AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
     }
 
     /**
-     * Test configuration for defaults and keytab with preset sun.security.krb5.principal, which is different from keytab
-     * principal.
+     * Test configuration for defaults and keytab with preset sun.security.krb5.principal, which is different from
+     * keytab principal.
      *
      * @throws Throwable
      */
@@ -189,9 +188,9 @@ public class KerberosInternalAPITest {
     public void test_login_with_defaults_and_keytab_and_preset_principal() throws Throwable {
 
         System.setProperty("sun.security.krb5.principal", "wrongprincipal@wrongrealm");
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.KEYTAB,
-                testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "",
+            AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
 
@@ -207,7 +206,8 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
-            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
+            true, false, null);
 
         testSuccessfulKeyTabLogin(config);
     }
@@ -222,7 +222,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             "localhost", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
@@ -238,7 +238,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
     }
@@ -251,8 +251,9 @@ public class KerberosInternalAPITest {
     @Test
     public void test_login_with_RealmKDC_and_UserPwd() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulUserPasswordLogin(config, KDC.USER);
     }
@@ -265,8 +266,9 @@ public class KerberosInternalAPITest {
     @Test
     public void test_login_with_RealmKDC_and_PrincipalPwd() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulUserPasswordLogin(config, KDC.USER + "@" + testKDC.getRealm());
     }
@@ -282,8 +284,9 @@ public class KerberosInternalAPITest {
     @Test(expected = LoginException.class)
     public void test_login_with_RealmKDC_and_wrong_password() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(KDC.USER, "wrong")));
@@ -300,24 +303,26 @@ public class KerberosInternalAPITest {
     @Test(expected = LoginException.class)
     public void test_login_with_RealmKDC_and_wrong_user() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler("unknown", "wrong")));
     }
 
     /**
-     * Tests configuration with Realm & KDC and a callback handler that says the user cancelled the login.
-     * Expects UserRequestedCancelException
+     * Tests configuration with Realm & KDC and a callback handler that says the user cancelled the login. Expects
+     * UserRequestedCancelException
      *
      * @throws Throwable
      */
     @Test(expected = UserRequestedCancelException.class)
     public void test_login_with_RealmKDC_and_user_cancelled_login() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
+                AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler()));
@@ -333,7 +338,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, KDC.KEYTAB_USER, testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
     }
@@ -347,9 +352,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_missing_realm() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "", testKDC.getKDCHost(), AuthMethod.KEYTAB,
-                testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "",
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
 
@@ -362,9 +367,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_missing_kdc() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), "", AuthMethod.KEYTAB,
-                testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
+            "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
 
@@ -379,7 +384,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             "123.232.+.23", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -395,7 +400,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, "test@FALSE", testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
 
@@ -408,9 +413,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_missing_keytab() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
-                AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), "", true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -424,9 +429,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_asterisk_in_keytab_principal() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
-                AuthMethod.KEYTAB, "*", testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, "*", testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -442,7 +447,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, "test@ab:cde", testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -456,9 +461,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_keytab_but_missing_principal() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
-                AuthMethod.KEYTAB, "", testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, "", testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -474,7 +479,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), "somewrongfile", true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -491,7 +496,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "HADOOPABC",
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -505,9 +510,9 @@ public class KerberosInternalAPITest {
     @Test(expected = KrbException.class)
     public void test_validateConfig_with_RealmKDC_but_invalid_realm() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "HADOOP:", "localhost", AuthMethod.KEYTAB,
-                "test@HADOOP:", testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "HADOOP:",
+            "localhost", AuthMethod.KEYTAB, "test@HADOOP:", testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -522,7 +527,8 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createInvalidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
-            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
+            true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -537,7 +543,7 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createInvalidKDCKrb5(testKDC.getRealm()), "", "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(),
-            testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -552,7 +558,8 @@ public class KerberosInternalAPITest {
     public void test_validateConfig_with_missing_krb_config_file() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE, "", "", "", AuthMethod.KEYTAB,
-            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
+            true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -566,9 +573,9 @@ public class KerberosInternalAPITest {
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_invalid_path_to_krb_config_file() throws Throwable {
 
-        KerberosPluginConfig config =
-            new KerberosPluginConfig(KerberosConfigSource.FILE, "--", "", "", AuthMethod.KEYTAB,
-                testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE, "--", "", "",
+            AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -584,7 +591,8 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createNoKDCforRealmKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
-            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
+            true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -600,7 +608,8 @@ public class KerberosInternalAPITest {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createNoDefaultRealmKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
-            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
+            true, false, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
     }
@@ -614,13 +623,12 @@ public class KerberosInternalAPITest {
     public void test_login_logout() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
         Util.awaitFuture(KerberosInternalAPI.logout());
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
     }
-
 
     /**
      * Test a renewal with a renewable ticket from the ticket cache.
@@ -648,8 +656,9 @@ public class KerberosInternalAPITest {
             throw new RuntimeException("Could not obtain ticket via kinit");
         }
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "",
-            AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, testKDC.getCcFile());
+        KerberosPluginConfig config =
+            new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, false, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         Instant prevValidUntil = KerberosAuthManager.getKerberosState().getTicketValidUntil();
@@ -671,7 +680,7 @@ public class KerberosInternalAPITest {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
             createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
             testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 59995,
-            true, null);
+            true, false, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
         KerberosState currentState = Util.awaitFuture(KerberosInternalAPI.login(config, null));
@@ -790,9 +799,9 @@ public class KerberosInternalAPITest {
             m_userCancelled = true;
         }
 
-
         /**
          * Creates a Callback handler that answers with the given user and password
+         *
          * @param user the user name
          * @param pwd the password
          */
