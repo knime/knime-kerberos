@@ -103,12 +103,17 @@ public class KerberosLogger {
     public static synchronized void stopCapture() {
         System.setProperty("sun.security.krb5.debug", "false");
         System.setProperty("sun.security.jgss.debug", "false");
-        System.setOut(origSysOut);
-        sysOutReplacement.flush();
-        sysOutReplacement.close();
+        if(origSysOut != null) {
+            System.setOut(origSysOut);
+            origSysOut = null;
+        }
 
-        sysOutReplacement = null;
-        origSysOut = null;
+        if(sysOutReplacement != null) {
+            sysOutReplacement.flush();
+            sysOutReplacement.close();
+            sysOutReplacement = null;
+        }
+
     }
 
     /**
