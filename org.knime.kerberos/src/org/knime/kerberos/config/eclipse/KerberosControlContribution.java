@@ -105,7 +105,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
 
     private Thread m_loginWorkerThread;
 
-    private boolean m_cancled;
+    private volatile boolean m_canceled;
 
     /**
      * {@inheritDoc}
@@ -188,7 +188,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             startLoginTask();
         } else if(m_icon.getMenu().getItem(0).getText().equals("Cancel")) {
             if (m_loginWorkerThread.isAlive()) {
-                m_cancled = true;
+                m_canceled = true;
                 m_loginWorkerThread.interrupt();
             }
         }else {
@@ -205,8 +205,8 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
                 KerberosInternalAPI.login(KerberosPluginConfig.load(), m_userPasswordCallbackHandler).get();
             } catch (Exception e) {
                 displayLoggedOutState();
-                if ((e instanceof InterruptedException) && m_cancled) {
-                    m_cancled = false;
+                if ((e instanceof InterruptedException) && m_canceled) {
+                    m_canceled = false;
                     Display.getDefault().asyncExec(() -> {
                         MessageDialog.openError(Display.getCurrent().getActiveShell(), "Login canceled",
                             "Kerberos login canceled.");
@@ -280,7 +280,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             m_text.getMenu().getItem(0).setText("Logout");
             m_text.getMenu().getItem(0).setEnabled(true);
         });
-        m_cancled = false;
+        m_canceled = false;
     }
 
     /**
@@ -288,10 +288,10 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
      */
     @Override
     public void showKerberosStatusIcon(final boolean showIcon) {
-        m_toolbar.setVisible(showIcon);
-
-       getWorkbenchWindow().getShell().layout();
-
+        if (m_toolbar.isVisible() != showIcon) {
+            m_toolbar.setVisible(showIcon);
+            getWorkbenchWindow().getShell().layout();
+        }
     }
 
 }

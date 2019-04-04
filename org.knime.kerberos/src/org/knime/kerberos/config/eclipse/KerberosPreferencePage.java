@@ -390,7 +390,6 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
     @Override
     protected void performDefaults() {
         loadConfigIntoFields(KerberosPluginConfig.defaults());
-        m_loginIconEnableButton.setSelection(false);
         super.performDefaults();
     }
 
