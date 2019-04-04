@@ -288,10 +288,13 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
      */
     @Override
     public void showKerberosStatusIcon(final boolean showIcon) {
-        if (m_toolbar.isVisible() != showIcon) {
-            m_toolbar.setVisible(showIcon);
-            getWorkbenchWindow().getShell().layout();
-        }
+        Display.getDefault().asyncExec(() -> {
+            if (m_toolbar.isVisible() != showIcon) {
+                m_toolbar.setVisible(showIcon);
+                getWorkbenchWindow().getShell().layout();
+            }
+        });
+
     }
 
 }
