@@ -191,7 +191,7 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
                 m_canceled = true;
                 m_loginWorkerThread.interrupt();
             }
-        }else {
+        } else {
             m_icon.getMenu().getItem(0).setEnabled(false);
             m_text.getMenu().getItem(0).setEnabled(false);
             KerberosControlContribution.this.m_text.setText("Logging out...");

@@ -187,7 +187,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
         statusBarGroup.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
         m_loginIconEnableButton = new Button(statusBarGroup, SWT.CHECK);
-        m_loginIconEnableButton.setText("Permanently enable login status bar");
+        m_loginIconEnableButton.setText("Permanently show login status");
         m_loginIconEnableButton.addListener(SWT.Selection, this);
 
 
