@@ -469,7 +469,7 @@ public class KerberosAuthManager {
      * @param showIcon
      */
     public static void showKerberosStatusIcon(final boolean showIcon) {
-        if(stateListener != null) {
+        if (stateListener != null) {
             stateListener.showKerberosStatusIcon(showIcon || loginState.isAuthenticated());
         }
     }
