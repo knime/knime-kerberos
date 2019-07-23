@@ -61,6 +61,7 @@ import javax.security.auth.login.LoginException;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger.LEVEL;
+import org.knime.core.node.workflow.NodeContext;
 import org.knime.kerberos.KerberosAuthManager;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.logger.KerberosLogger;
@@ -93,10 +94,15 @@ public class KerberosProvider {
      * @return a Future with the return T
      */
     public static <T> Future<T> doWithKerberosAuth(final KerberosCallback<T> callback) {
+        final NodeContext nodeContext = NodeContext.getContext();
         return KerberosAuthManager.EXECUTOR.submit(() -> {
             final KerberosPluginConfig config = KerberosPluginConfig.load();
 
             try {
+                if (nodeContext != null) {
+                    NodeContext.pushContext(nodeContext);
+                }
+
                 KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
                 KerberosAuthManager.showKerberosStatusIcon(true);
                 ensureAuthenticated(config);
@@ -109,6 +115,9 @@ public class KerberosProvider {
                     throw (Exception)e.getCause();
                 }
             } finally {
+                if (nodeContext != null) {
+                    NodeContext.removeLastContext();
+                }
                 KerberosLogger.stopCapture();
             }
         });
