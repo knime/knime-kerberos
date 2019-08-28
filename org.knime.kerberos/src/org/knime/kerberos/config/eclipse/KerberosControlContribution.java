@@ -69,6 +69,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.ui.dialogs.PreferencesUtil;
 import org.eclipse.ui.menus.WorkbenchWindowControlContribution;
 import org.knime.kerberos.ExceptionUtil;
 import org.knime.kerberos.KerberosAuthManager;
@@ -101,8 +102,6 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
 
     private Label m_text;
 
-    private Composite m_toolbar;
-
     private Thread m_loginWorkerThread;
 
     private volatile boolean m_canceled;
@@ -116,21 +115,21 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             m_userPasswordCallbackHandler = new UserPasswordDialogCallbackHandler(parent.getShell());
             parent.getParent().setRedraw(true);
 
-            m_toolbar = parent.getParent();
             m_composite = new Composite(parent, SWT.NONE);
-
             GridLayout layout = new GridLayout(2, false);
             layout.marginHeight = 0;
             layout.marginWidth = 0;
             layout.marginTop = -1;
             m_composite.setLayout(layout);
+            GridData gdataIcon = new GridData(SWT.CENTER, SWT.CENTER, false, true, 1, 1);
             m_icon = new Label(m_composite, SWT.CENTER);
+            m_icon.setLayoutData(gdataIcon);
             addInteractions(m_icon);
 
-            GridData gdata = new GridData(SWT.FILL, SWT.FILL, false, false, 1, 1);
-            gdata.widthHint = 110;
+            GridData gdataLabel = new GridData(SWT.CENTER, SWT.CENTER, true, true, 1, 1);
+            gdataLabel.widthHint = 110;
             m_text = new Label(m_composite, SWT.CENTER);
-            m_text.setLayoutData(gdata);
+            m_text.setLayoutData(gdataLabel);
             addInteractions(m_text);
             try {
                 File bundle = FileLocator.getBundleFile(FrameworkUtil.getBundle(getClass()));
@@ -145,9 +144,9 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
             }
 
             m_composite.setEnabled(true);
+            m_composite.setVisible(KerberosPlugin.getDefault().getPreferenceStore().getBoolean(PrefKey.SHOW_ICON_KEY));
 
             KerberosAuthManager.registerStateListener(this);
-            showKerberosStatusIcon(KerberosPlugin.getDefault().getPreferenceStore().getBoolean(PrefKey.SHOW_ICON_KEY));
         }
 
         return m_composite;
@@ -177,6 +176,11 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
         final MenuItem loginLogout = new MenuItem(menu, SWT.PUSH);
         loginLogout.setText("Login");
         loginLogout.addListener(SWT.Selection, (e) -> triggerLoginToggle());
+        final MenuItem preferences = new MenuItem(menu, SWT.PUSH);
+        preferences.setText("Preferences");
+        preferences.addListener(SWT.Selection, e ->
+            PreferencesUtil.createPreferenceDialogOn(control.getShell(), KerberosPreferencePage.ID, null, null).open()
+        );
     }
 
     private void triggerLoginToggle() {
@@ -283,18 +287,16 @@ public class KerberosControlContribution extends WorkbenchWindowControlContribut
         m_canceled = false;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void showKerberosStatusIcon(final boolean showIcon) {
-        Display.getDefault().asyncExec(() -> {
-            if (m_toolbar.isVisible() != showIcon) {
-                m_toolbar.setVisible(showIcon);
-                getWorkbenchWindow().getShell().layout();
-            }
-        });
-
+        Display.getDefault().asyncExec(() -> setVisible(showIcon));
     }
 
+    @Override
+    public void setVisible(final boolean visible) {
+        if (m_composite != null) {
+            m_composite.setVisible(visible);
+        }
+        super.setVisible(visible);
+    }
 }

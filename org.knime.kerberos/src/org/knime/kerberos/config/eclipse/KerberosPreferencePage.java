@@ -80,6 +80,11 @@ import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
  */
 public class KerberosPreferencePage extends PreferencePage implements IWorkbenchPreferencePage, Listener {
 
+    /**
+     * Unique ID of this preference page used in {@code plugin.xml}.
+     */
+    public static final String ID = "org.knime.kerberos.config.eclipse.KerberosPreferencePage";
+
     private Button m_configDefaultButton;
     private Button m_configFileButton;
     private Text m_configFileInput;
