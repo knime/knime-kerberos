@@ -148,7 +148,7 @@ public class KerberosLoggerTest {
     public void test_login_logout() throws Exception {
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true,
-            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
+            PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
         testSuccessfulKeyTabLogin(config);
         List<String> logLines = KerberosLogger.getCapturedLines();

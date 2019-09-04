@@ -58,6 +58,8 @@ import java.util.Properties;
 
 import org.apache.hadoop.minikdc.MiniKdc;
 
+import sun.security.krb5.internal.ccache.FileCredentialsCache;
+
 /**
  * A KDC for unit-testing purposes, based on Hadoop's MiniKDC.
  *
@@ -69,7 +71,7 @@ public class KDC {
 
     private final Properties kdcConf;
 
-    private final String m_kdcConfPath;
+    private final String m_krbConfPath;
 
     private final MiniKdc m_kdc;
 
@@ -104,7 +106,7 @@ public class KDC {
         kdcConf.setProperty(MiniKdc.MIN_TICKET_LIFETIME, "60");
         m_kdc = new MiniKdc(kdcConf, m_kdcDir);
         m_kdc.start();
-        m_kdcConfPath = m_kdc.getKrb5conf().getAbsolutePath();
+        m_krbConfPath = m_kdc.getKrb5conf().getAbsolutePath();
         m_keytabFile = new File(m_kdcDir, "keytab");
         m_realm = m_kdc.getRealm();
         m_kdcHost = m_kdc.getHost() + ":" + m_kdc.getPort();
@@ -113,9 +115,8 @@ public class KDC {
         m_keytabPrincipal = KEYTAB_USER + "@" + m_realm;
 
         m_kdc.createPrincipal(USER, PWD);
-        File ccFile = File.createTempFile("KRB5CC", ".cc");
+        File ccFile = new File(FileCredentialsCache.getDefaultCacheName());
         m_ccFile = ccFile.getAbsolutePath();
-        System.setProperty("KRB5CCNAME", m_ccFile);
     }
 
 
@@ -189,6 +190,6 @@ public class KDC {
      * @return the kdcConfPath
      */
     public String getKdcConfPath() {
-        return m_kdcConfPath;
+        return m_krbConfPath;
     }
 }
