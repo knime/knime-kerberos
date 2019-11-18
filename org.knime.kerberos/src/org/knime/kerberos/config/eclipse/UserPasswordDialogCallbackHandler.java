@@ -66,6 +66,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.knime.core.node.util.StringHistory;
 import org.knime.kerberos.KerberosUserPwdAuthCallbackHandler;
 
 /**
@@ -88,6 +89,10 @@ public class UserPasswordDialogCallbackHandler implements KerberosUserPwdAuthCal
     }
 
     private static class UserPasswordDialog extends TitleAreaDialog {
+
+        //store the last used Kerberos user name
+        final StringHistory NAME_HISTORY = StringHistory.getInstance("org.knime.kerberos.name", 1);
+
         private boolean m_userAsked = false;
 
         private Text m_nameText;
@@ -98,6 +103,8 @@ public class UserPasswordDialogCallbackHandler implements KerberosUserPwdAuthCal
 
         protected UserPasswordDialog(final Shell parentShell) {
             super(parentShell);
+            final String[] userHistory = NAME_HISTORY.getHistory();
+            m_name =  userHistory != null && userHistory.length == 1 ? userHistory[0] : null;
         }
 
         @Override
@@ -133,6 +140,9 @@ public class UserPasswordDialogCallbackHandler implements KerberosUserPwdAuthCal
         @Override
         protected void okPressed() {
             m_name = m_nameText.getText();
+            if (m_name != null && !m_name.isEmpty()) {
+                NAME_HISTORY.add(m_name);
+            }
             m_password = m_passwordText.getText().toCharArray();
             super.okPressed();
         }
