@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+    <feature id="org.knime.features.kerberos" version="0.0.0">
+        <category name="knime-kerberos"/>
+    </feature>
+
+    <feature id="org.knime.features.kerberos.source" version="0.0.0">
+        <category name="knime-kerberos"/>
+    </feature>
+
+    <category-def name="knime-kerberos" label="Build artifacts from knime-kerberos">
+        <description>Build artifacts from knime-kerberos</description>
+    </category-def>
+</site>
