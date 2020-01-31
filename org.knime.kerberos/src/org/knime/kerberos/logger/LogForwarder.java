@@ -44,22 +44,21 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Feb 14, 2019 (bjoern): created
+ *   Jan 28, 2020 (bjoern): created
  */
 package org.knime.kerberos.logger;
 
 /**
- * Interface to allow Kerberos debug log messages to be forwarded to some other place. The main purpose of this
- * interface is to be able to mock away KNIME's NodeLogger in unit tests.
+ * Defines a log forwarder that can forward a String message to an implementation specific location.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
 public interface LogForwarder {
 
     /**
-     * Forwards the given log message
-     * @param msg the message to forward
+     * Forward a String message to an implementation specific location.
+     *
+     * @param msg The message to forward.
      */
-    void forwardLine(String msg);
-
+    void forwardMessage(final String msg);
 }

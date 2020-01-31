@@ -58,6 +58,7 @@ import java.util.concurrent.TimeoutException;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
 
+import org.eclipse.core.runtime.Plugin;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger.LEVEL;
@@ -71,8 +72,16 @@ import org.knime.kerberos.logger.KerberosLogger;
  * method to run code that requires a JAAS {@link Subject} with a Kerberos ticket. The ticket will be acquired
  * automatically based on Eclipse preferences.
  *
+ * <p>
+ * IMPORTANT: Users of this class should call {@link #ensureInitialized()} *before* performing any operations that could
+ * lead to loading classes from Java's Kerberos implementation, otherwise debug logging might not work. The recommended
+ * place to call {@link #ensureInitialized()} is in the {@link Plugin#start(org.osgi.framework.BundleContext)} method of
+ * the plugin that uses {@link KerberosProvider}.
+ * </p>
+ *
  * @author Bjoern Lohrmann, KNIME GmbH, Konstanz, Germany
  * @author Mareike Hoeger, KNIME GmbH, Konstanz, Germany
+ * @since 4.0
  */
 public class KerberosProvider {
 
@@ -84,6 +93,26 @@ public class KerberosProvider {
      */
     public static KerberosState getKerberosState() {
         return KerberosAuthManager.getKerberosState();
+    }
+
+    /**
+     * Ensures that Java's Kerberos implementation is properly initialized, in particular debug logging. Users of
+     * {@link KerberosProvider} should call this method *before* performing any operations that load classes from Java's
+     * Kerberos stack.
+     *
+     * <p>
+     * Background: Debug logging in Java's Kerberos stack depends on the value of a final variable, which is initialized
+     * at class loading time based on the value of a system property. Afterwards, debug logging cannot be changed
+     * without JVM restart.
+     * </p>
+     *
+     * @since 4.1.1
+     */
+    public static void ensureInitialized() {
+        final KerberosPluginConfig config = KerberosPluginConfig.load();
+        if (config.doDebugLogging()) {
+            KerberosLogger.startCapture(LEVEL.valueOf(config.getDebugLogLevel()));
+        }
     }
 
     /**
@@ -103,7 +132,6 @@ public class KerberosProvider {
                     NodeContext.pushContext(nodeContext);
                 }
 
-                KerberosLogger.startCapture(config.doDebugLogging(), LEVEL.valueOf(config.getDebugLogLevel()));
                 KerberosAuthManager.showKerberosStatusIcon(true);
                 ensureAuthenticated(config);
 
@@ -118,7 +146,6 @@ public class KerberosProvider {
                 if (nodeContext != null) {
                     NodeContext.removeLastContext();
                 }
-                KerberosLogger.stopCapture();
             }
         });
     }

@@ -51,7 +51,6 @@ package org.knime.kerberos;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,7 +77,6 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.logger.LogForwarder;
 import org.knime.kerberos.testing.KDC;
 import org.knime.kerberos.testing.Util;
 
@@ -93,8 +91,6 @@ import sun.security.krb5.KrbException;
 public class KerberosInternalAPITest {
 
     private static KDC testKDC;
-
-    private LogForwarder m_mockedLogForwarder;
 
     /**
      * Sets up a test testKDC.
@@ -136,8 +132,9 @@ public class KerberosInternalAPITest {
      */
     @Before
     public void setup() {
-        m_mockedLogForwarder = mock(LogForwarder.class);
-        KerberosLogger.setLogForwarderForTesting(m_mockedLogForwarder);
+        // deactivates the multiplexing of Kerberos log messages into a KNIME NodeLogger,
+        // which requires a fully booted KNIME and OSGI container, which we do not want.
+        KerberosLogger.setUseNodeLoggerForwarder(false);
     }
 
     private static void testSuccessfulKeyTabLogin(final KerberosPluginConfig config) throws Exception {
@@ -446,7 +443,7 @@ public class KerberosInternalAPITest {
     public void test_validateConfig_with_RealmKDC_and_invalid_keytab_principal() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.KEYTAB, "test@ab:cde", testKDC.getKeytabFilePath(), true,
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, "test@ab/cde", testKDC.getKeytabFilePath(), true,
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));
@@ -510,8 +507,8 @@ public class KerberosInternalAPITest {
     @Test(expected = KrbException.class)
     public void test_validateConfig_with_RealmKDC_but_invalid_realm() throws Throwable {
 
-        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "HADOOP:",
-            "localhost", AuthMethod.KEYTAB, "test@HADOOP:", testKDC.getKeytabFilePath(), true,
+        KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", "HADOOP/",
+            "localhost", AuthMethod.KEYTAB, "test@HADOOP/" + '\0', testKDC.getKeytabFilePath(), true,
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
         Util.awaitFuture(KerberosInternalAPI.validateConfig(config, false));

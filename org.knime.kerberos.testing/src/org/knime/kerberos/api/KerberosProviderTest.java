@@ -86,7 +86,6 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.logger.LogForwarder;
 import org.knime.kerberos.testing.KDC;
 import org.knime.kerberos.testing.Util;
 import org.mockito.invocation.InvocationOnMock;
@@ -100,8 +99,6 @@ import org.mockito.stubbing.Answer;
 public class KerberosProviderTest {
 
     private static KDC testKDC;
-
-    private LogForwarder m_mockedLogForwarder;
 
     /**
      * Sets up a test KDC.
@@ -129,8 +126,10 @@ public class KerberosProviderTest {
     @Before
     public void setupBefore() {
         KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
-        m_mockedLogForwarder = mock(LogForwarder.class);
-        KerberosLogger.setLogForwarderForTesting(m_mockedLogForwarder);
+
+        // deactivates the multiplexing of Kerberos log messages into a KNIME NodeLogger,
+        // which requires a fully booted KNIME and OSGI container, which we do not want.
+        KerberosLogger.setUseNodeLoggerForwarder(false);
     }
 
     /**

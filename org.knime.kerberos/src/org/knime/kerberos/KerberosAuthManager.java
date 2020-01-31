@@ -73,9 +73,11 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
 import org.apache.log4j.Logger;
+import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.api.KerberosState;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
+import org.knime.kerberos.logger.KerberosLogger;
 
 import sun.security.jgss.krb5.Krb5Util;
 import sun.security.krb5.Config;
@@ -171,6 +173,8 @@ public class KerberosAuthManager {
             tmpKrb5Conf = null;
         }
 
+        KerberosLogger.stopCapture();
+
         try {
             Config.refresh();
         } catch (KrbException e) {
@@ -217,10 +221,17 @@ public class KerberosAuthManager {
      */
     public static void configure(final KerberosPluginConfig config) throws KrbException, IOException {
         LOG.debug("Trying to configure Kerberos");
+
+        // starts capturing the stdout until rollback
+        if (config.doDebugLogging()) {
+            KerberosLogger.startCapture(LEVEL.valueOf(config.getDebugLogLevel()));
+        }
+
         validateConfigShallow(config);
         backupSystemProperties();
         setupSystemProperties(config);
         KerberosPluginConfigValidator.preRefreshValidate(config);
+
         // ! I/O
         Config.refresh();
         KerberosPluginConfigValidator.postRefreshValidate(config);

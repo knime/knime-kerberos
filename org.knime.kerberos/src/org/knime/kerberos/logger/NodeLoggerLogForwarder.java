@@ -44,96 +44,67 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   01.02.2017 (koetter): created
+ *   Feb 14, 2019 (bjoern): created
  */
 package org.knime.kerberos.logger;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeLogger.LEVEL;
 
 /**
- * {@link OutputStream} implementation that writes to the given {@link NodeLogger} with the defined level.
+ * {@link LogForwarder} implementation that forwards log messages to a KNIME {@link NodeLogger}.
  *
- * @author Tobias Koetter, KNIME.com
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class NodeLoggerOutputStreamBuffer extends OutputStream {
+public class NodeLoggerLogForwarder implements LogForwarder {
 
-    private static final String SEPERATOR = System.getProperty("line.separator");
+    private NodeLogger m_nodeLogger;
 
-    private final StringBuilder m_buf = new StringBuilder();
-
-    private final ArrayList<String> m_lineBuffer = new ArrayList<>();
-
-    private volatile boolean m_closed = false;
-
-    private volatile LogForwarder m_logForwarder;
+    private LEVEL m_logLevel;
 
     /**
-     * {@inheritDoc}
+     * Creates a new instance.
+     *
+     * @param logger NodeLogger to forward messages to. May be null if forwardToNodeLogger is false.
+     * @param logLevel The log level to use when forwarding messages to the node logger.
      */
-    @Override
-    public void close() {
-        flush();
-        m_closed = true;
+    public NodeLoggerLogForwarder(final NodeLogger logger, final LEVEL logLevel) {
+        m_nodeLogger = logger;
+        m_logLevel = logLevel;
     }
 
     /**
-     * Opens the stream for the given log forwarder
-     * @param logForwarder
+     * Update which {@link NodeLogger} to forward to, and which log level to use.
+     *
+     * @param logger The {@link NodeLogger} to forward to.
+     * @param logLevel The log level to use.
      */
-    public void open(final LogForwarder logForwarder) {
-        m_lineBuffer.clear();
-        m_logForwarder = logForwarder;
-        m_closed = false;
-    }
-
-    /**
-     * Returns the buffered log lines as a list of strings
-     * @return the buffered lines
-     */
-    public List<String> getBufferedLines() {
-        return new ArrayList<String>(m_lineBuffer);
+    public void updateConfiguration(final NodeLogger logger, final LEVEL logLevel) {
+        m_nodeLogger = logger;
+        m_logLevel = logLevel;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void write(final int b) throws IOException {
-        if (m_closed) {
-            return;
+    public void forwardMessage(final String msg) {
+        switch (m_logLevel) {
+            case ERROR:
+                m_nodeLogger.error(msg);
+                break;
+            case FATAL:
+                m_nodeLogger.fatal(msg);
+                break;
+            case INFO:
+                m_nodeLogger.info(msg);
+                break;
+            case WARN:
+                m_nodeLogger.warn(msg);
+                break;
+            default:
+                m_nodeLogger.debug(msg);
+                break;
         }
-
-        // don't log nulls
-        if (b == 0) {
-            return;
-        }
-        m_buf.append((char)b);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void flush() {
-        if (m_buf.length() < 1) {
-            return;
-        }
-        // ignore blank lines
-        if (m_buf.length() == SEPERATOR.length()) {
-            if ((m_buf.charAt(0)) == SEPERATOR.charAt(0)
-                && ((m_buf.length() == 1) || ((m_buf.length() == 2) && (m_buf.charAt(1) == SEPERATOR.charAt(1))))) {
-                m_buf.setLength(0);
-                return;
-            }
-        }
-        final String msg = m_buf.toString();
-        m_lineBuffer.add(msg);
-        m_logForwarder.forwardLine(msg);
-        m_buf.setLength(0);
     }
 }
