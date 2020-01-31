@@ -55,16 +55,22 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeLogger.LEVEL;
 
 /**
- * This class captures Kerberos debug outut by setting the right system properties and redirecting the System.out to the
- * {@link NodeLoggerOutputStreamBuffer} class.
+ * This class captures Kerberos debug output by manipulating system properties and redirecting the System.out to an
+ * in-memory buffer (for display purposes), and the KNIME NodeLogger of this class. The { {@link #startCapture(LEVEL)}
+ * method starts the redirect, but must be called prior to loading any of Java's Kerberos implementation classes,
+ * otherwise we cannot get the full debug log output.
  *
- * @author Tobias Koetter, KNIME.com
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
 public class KerberosLogger {
 
-    private static final NodeLoggerOutputStreamBuffer BUFFER = new NodeLoggerOutputStreamBuffer();
+    private static final LogForwarderOutputStream LOG_FORWARDER_OUTPUT_STREAM = new LogForwarderOutputStream();
 
-    private static LogForwarder testingLogForwarder = null;
+    private static final MemoryBufferLogFowarder MEMORY_BUFFER_LOG_FORWARDER = new MemoryBufferLogFowarder();
+
+    private static boolean useNodeLoggerForwarder = true;
+
+    private static NodeLoggerLogForwarder nodeLoggerForwarder = null;
 
     private static PrintStream sysOutReplacement;
 
@@ -75,84 +81,109 @@ public class KerberosLogger {
     }
 
     /**
-     * Enable or disable the Kerberos logging.
+     * Starts capturing the System.out. This method must be called prior to loading any of Java's Kerberos
+     * implementation classes, otherwise we cannot get the full debug log output. Every line that gets written to
+     * System.out will be written to two places, (1) an in-memory buffer (for display purposes), and (2) the KNIME
+     * NodeLogger of this class. It is safe to call this method multiple times, however the in-memory buffer of log
+     * messages will be cleared each time.
      *
-     * @param forwardToKNIMELog <code>true</code> if logging should be enabled
-     * @param knimeLogLevel the log Level
+     * @param nodeLoggerLogLevel the log Level
      */
-    public static synchronized void startCapture(final boolean forwardToKNIMELog, final LEVEL knimeLogLevel) {
-        if (testingLogForwarder != null) {
-            BUFFER.open(testingLogForwarder);
-        } else {
-            BUFFER.open(newKNIMELogForwarder(forwardToKNIMELog, knimeLogLevel));
-        }
+    public static synchronized void startCapture(final LEVEL nodeLoggerLogLevel) {
+        ensureLogForwardersInitialized();
+        ensureNodeLoggerForwarderConfig(nodeLoggerLogLevel);
+        ensureSystemOutRedirect();
+    }
 
-        sysOutReplacement = new PrintStream(BUFFER, true);
-
-        //save the original output stream in order to reset it if the logging is disabled
-        origSysOut = System.out;
-        System.setOut(sysOutReplacement);
-
+    private static void ensureSystemOutRedirect() {
         System.setProperty("sun.security.krb5.debug", "true");
         System.setProperty("sun.security.jgss.debug", "true");
+
+        if (sysOutReplacement == null) {
+            LOG_FORWARDER_OUTPUT_STREAM.ensureOpen();
+            sysOutReplacement = new PrintStream(LOG_FORWARDER_OUTPUT_STREAM, true);
+
+            //save the original output stream in order to reset it if the logging is disabled
+            origSysOut = System.out;
+            System.setOut(sysOutReplacement);
+        }
     }
 
     /**
-     * Stops the capturing of the log
+     * Ensures that all the log forwarder that forwards to the KerberosLogger NodeLogger
+     * is properly configured.
+     *
+     * @param nodeLoggerLogLevel
+     */
+    private static void ensureNodeLoggerForwarderConfig(final LEVEL nodeLoggerLogLevel) {
+        if (useNodeLoggerForwarder) {
+            final NodeLogger logger = NodeLogger.getLogger(KerberosLogger.class);
+            nodeLoggerForwarder.updateConfiguration(logger, nodeLoggerLogLevel);
+        }
+    }
+
+    /**
+     * Ensures that all log forwarder instances are initialized and registered.
+     */
+    private static void ensureLogForwardersInitialized() {
+        LOG_FORWARDER_OUTPUT_STREAM.clearLogForwarders();
+
+        MEMORY_BUFFER_LOG_FORWARDER.clearBuffer();
+        LOG_FORWARDER_OUTPUT_STREAM.addLogForwarder(MEMORY_BUFFER_LOG_FORWARDER);
+
+        // for unit testing we need to be able to shut off the NodeLoggerLogForwarder because
+        // it requires a fully booted KNIME and OSGI container, which we do not want.
+        if (useNodeLoggerForwarder) {
+            if (nodeLoggerForwarder == null) {
+                final NodeLogger logger = NodeLogger.getLogger(KerberosLogger.class);
+                nodeLoggerForwarder = new NodeLoggerLogForwarder(logger, LEVEL.DEBUG);
+            }
+            LOG_FORWARDER_OUTPUT_STREAM.addLogForwarder(nodeLoggerForwarder);
+        }
+    }
+
+    /**
+     * Stops the capturing of the log. This may or may not prevent Java's Kerberos implementation from printing messages
+     * to System.out, but it definitely stops the capturing of the messages in KerberosLogger.
      */
     public static synchronized void stopCapture() {
         System.setProperty("sun.security.krb5.debug", "false");
         System.setProperty("sun.security.jgss.debug", "false");
-        if(origSysOut != null) {
+
+        if (origSysOut != null) {
             System.setOut(origSysOut);
             origSysOut = null;
         }
 
-        if(sysOutReplacement != null) {
+        if (sysOutReplacement != null) {
             sysOutReplacement.flush();
+            // this also closes LOG_FORWARDER_OUTPUT_STREAM
             sysOutReplacement.close();
             sysOutReplacement = null;
         }
-
     }
 
     /**
      * @return gets the captured lines as a list of strings
      */
     public static synchronized List<String> getCapturedLines() {
-        return BUFFER.getBufferedLines();
+        return MEMORY_BUFFER_LOG_FORWARDER.getCapturedLines();
     }
 
     /**
-     * Sets whether the log should be forwarded for test
-     * @param logForwarder the log forwarder to forward to
+     * Clears the in-memory buffer of captured lines.
      */
-    public synchronized static void setLogForwarderForTesting(final LogForwarder logForwarder) {
-        testingLogForwarder = logForwarder;
+    public static synchronized void clearCapturedLines() {
+        MEMORY_BUFFER_LOG_FORWARDER.clearBuffer();
     }
 
-    private static LogForwarder newKNIMELogForwarder(final boolean forwardToKNIMELog, final LEVEL knimeLogLevel) {
-        final NodeLogger logger = NodeLogger.getLogger(KerberosLogger.class);
-        return (line) -> {
-            if (forwardToKNIMELog) {
-                switch (knimeLogLevel) {
-                    case ERROR:
-                        logger.error(line);
-                        break;
-                    case FATAL:
-                        logger.fatal(line);
-                        break;
-                    case INFO:
-                        logger.info(line);
-                        break;
-                    case WARN:
-                        logger.warn(line);
-                        break;
-                    default:
-                        logger.debug(line);
-                        break;
-                }
-            }
-        };
+    /**
+     * (Testing code) Method to set whether messages captured from System.out should be forwarded to a KNIME NodeLogger.
+     * Being able to switch this off allows unit tests to run without OSGI container.
+     *
+     * @param shouldUse Whether to forward messages to a KNIME NodeLogger or not.
+     */
+    public static synchronized void setUseNodeLoggerForwarder(final boolean shouldUse) {
+        useNodeLoggerForwarder = shouldUse;
     }
 }

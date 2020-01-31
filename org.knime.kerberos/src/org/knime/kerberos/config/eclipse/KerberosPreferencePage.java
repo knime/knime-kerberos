@@ -50,6 +50,7 @@ package org.knime.kerberos.config.eclipse;
 
 import java.util.ArrayList;
 
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.preference.PreferencePage;
 import org.eclipse.swt.SWT;
@@ -66,12 +67,15 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.eclipse.ui.PlatformUI;
+import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.KerberosInternalAPI;
 import org.knime.kerberos.KerberosPlugin;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
+import org.knime.kerberos.logger.KerberosLogger;
 
 /**
  * Preferences page for Kerberos related settings.
@@ -400,9 +404,7 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
 
     @Override
     protected void performApply() {
-        final KerberosPluginConfig config = loadFieldsIntoConfig();
-        config.save();
-        KerberosInternalAPI.showKerberosStatusIcon(m_loginIconEnableButton.getSelection());
+        saveAndApplyNewPrefs();
     }
 
     @Override
@@ -410,11 +412,31 @@ public class KerberosPreferencePage extends PreferencePage implements IWorkbench
         boolean statusWidgetResult = m_statusWidget.performOk();
 
         if (statusWidgetResult) {
-            final KerberosPluginConfig config = loadFieldsIntoConfig();
-            config.save();
+            saveAndApplyNewPrefs();
         }
-        KerberosInternalAPI.showKerberosStatusIcon(m_loginIconEnableButton.getSelection());
+
         return statusWidgetResult;
+    }
+
+    private void saveAndApplyNewPrefs() {
+        final KerberosPluginConfig newConfig = loadFieldsIntoConfig();
+        final KerberosPluginConfig oldConfig = KerberosPluginConfig.load();
+
+        if (!oldConfig.doDebugLogging() && newConfig.doDebugLogging()) {
+            // if Kerberos debug logging was switched on, then request restart from user and start capture
+            MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
+                "Kerberos Logging",
+                "Please restart KNIME Analytics Platform for Kerberos debug messages to be available.");
+            KerberosLogger.startCapture(LEVEL.valueOf(newConfig.getDebugLogLevel()));
+        } else if (oldConfig.doDebugLogging() && !newConfig.doDebugLogging()) {
+            // if Kerberos debug logging was switched off, then stop the current capture
+            KerberosLogger.stopCapture();
+            KerberosLogger.clearCapturedLines();
+        }
+
+        newConfig.save();
+
+        KerberosInternalAPI.showKerberosStatusIcon(newConfig.showIcon());
     }
 
     @Override

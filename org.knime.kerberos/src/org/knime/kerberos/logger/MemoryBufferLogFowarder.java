@@ -44,65 +44,49 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Jan 15, 2019 (bjoern): created
+ *   Jan 28, 2020 (bjoern): created
  */
-package org.knime.kerberos;
+package org.knime.kerberos.logger;
 
-import org.eclipse.ui.plugin.AbstractUIPlugin;
-import org.knime.kerberos.api.KerberosProvider;
-import org.knime.kerberos.config.KerberosLegacyPreferenceHelper;
-import org.osgi.framework.BundleContext;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Plugin of the Kerberos authentication framework.
+ * {@link LogForwarder} implementation that appends log messages to an in-memory list of Strings that can be retrieved.
+ * This log forwarder implementation prepends a timestamp to each log message.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class KerberosPlugin extends AbstractUIPlugin {
+public class MemoryBufferLogFowarder implements LogForwarder {
 
-    // The shared instance.
-    private static KerberosPlugin plugin;
+    private static final DateTimeFormatter DATETIME_FORMATTER =
+        new DateTimeFormatterBuilder().appendPattern("yyyy-MM-dd HH:mm:ss").toFormatter();
+
+    private final ArrayList<String> m_lineBuffer = new ArrayList<>();
 
     /**
-     * The constructor.
+     * @return a list with the currently buffered log messages.
      */
-    public KerberosPlugin() {
-        plugin = this;
+    public List<String> getCapturedLines() {
+        return Collections.unmodifiableList(m_lineBuffer);
     }
 
     /**
-     * This method is called upon plug-in activation.
-     *
-     * @param context The bundle context.
-     * @throws Exception If cause by super class.
+     * Clears the buffered log messages.
+     */
+    public void clearBuffer() {
+        m_lineBuffer.clear();
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
-    public void start(final BundleContext context) throws Exception {
-        super.start(context);
-        KerberosLegacyPreferenceHelper.migrateLegacyKerberosPreferences();
-
-        // ensure Kerberos debug logging is properly initialized
-        KerberosProvider.ensureInitialized();
-    }
-
-    /**
-     * This method is called when the plug-in is stopped.
-     *
-     * @param context The bundle context.
-     * @throws Exception If cause by super class.
-     */
-    @Override
-    public void stop(final BundleContext context) throws Exception {
-        plugin = null;
-        super.stop(context);
-    }
-
-    /**
-     * Returns the shared instance.
-     *
-     * @return The shared instance
-     */
-    public static KerberosPlugin getDefault() {
-        return plugin;
+    public void forwardMessage(final String msg) {
+        m_lineBuffer.add(String.format("%s  %s", DATETIME_FORMATTER.format(LocalDateTime.now()), msg));
     }
 }

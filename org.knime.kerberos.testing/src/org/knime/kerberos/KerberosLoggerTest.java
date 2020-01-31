@@ -51,10 +51,14 @@ package org.knime.kerberos;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -68,7 +72,6 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.logger.LogForwarder;
 import org.knime.kerberos.testing.KDC;
 import org.knime.kerberos.testing.Util;
 
@@ -80,9 +83,6 @@ import org.knime.kerberos.testing.Util;
 public class KerberosLoggerTest {
 
     private static KDC testKDC;
-
-    private LogForwarder m_mockedLogForwarder;
-
 
     /**
      * Sets up a test testKDC.
@@ -124,8 +124,9 @@ public class KerberosLoggerTest {
      */
     @Before
     public void setup() {
-        m_mockedLogForwarder = mock(LogForwarder.class);
-        KerberosLogger.setLogForwarderForTesting(m_mockedLogForwarder);
+        // deactivates the multiplexing of Kerberos log messages into a KNIME NodeLogger,
+        // which requires a fully booted KNIME and OSGI container, which we do not want.
+        KerberosLogger.setUseNodeLoggerForwarder(false);
     }
 
     private static void testSuccessfulKeyTabLogin(final KerberosPluginConfig config) throws Exception {
@@ -165,21 +166,85 @@ public class KerberosLoggerTest {
     @Test
     public void test_start_stop_logger() throws Exception {
 
+        final String regexTemplate = "[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+  %s";
+
         String testString = "Test String";
         String testString2 = "Test String 2";
         synchronized(System.out) {
-            KerberosLogger.startCapture(true, LEVEL.DEBUG);
+            KerberosLogger.startCapture(LEVEL.DEBUG);
             System.out.println(testString);
             System.out.println(testString2);
-            List<String> logLines = KerberosLogger.getCapturedLines();
-            assertTrue(logLines.size() == 2);
-            assertTrue(logLines.get(0).equalsIgnoreCase(testString));
-            assertTrue(logLines.get(1).equalsIgnoreCase(testString2));
-            KerberosLogger.stopCapture();
-            System.out.println("Should not be in log");
-            logLines = KerberosLogger.getCapturedLines();
-            assertTrue(logLines.size() == 2);
+            System.out.flush();
+        }
+
+        synchronized(System.out) {
+
+        List<String> logLines = KerberosLogger.getCapturedLines();
+        assertEquals(2, logLines.size());
+        assertTrue(Pattern.matches(String.format(regexTemplate, testString), logLines.get(0)));
+        assertTrue(Pattern.matches(String.format(regexTemplate, testString2), logLines.get(1)));
+
+        KerberosLogger.stopCapture();
+        System.out.println("Should not be in log");
+        logLines = KerberosLogger.getCapturedLines();
+        assertTrue(logLines.size() == 2);
         }
     }
 
+    /**
+     * Tests thread-safety of the KerberosLogger.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void test_concurrent_sysout_logging() throws InterruptedException {
+        final ForkJoinPool pool = new ForkJoinPool();
+
+        KerberosLogger.startCapture(LEVEL.DEBUG);
+
+        final String msgTemplate = "This is message %d.%d bla bla bla blub";
+        for (int i = 0; i < 100; i++) {
+            final int taskId = i;
+            pool.execute(() -> {
+                for (int j = 0; j < 1000; j++) {
+                    System.out.println(String.format(msgTemplate, taskId, j));
+                }
+            });
+        }
+        pool.shutdown();
+        pool.awaitTermination(30, TimeUnit.SECONDS);
+
+        final List<String> capturedLines = KerberosLogger.getCapturedLines();
+        KerberosLogger.stopCapture();
+
+        assertEquals(1000 * 100, capturedLines.size());
+
+        final Pattern msgRegex = Pattern
+            .compile("[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+  This is message [0-9]+.[0-9]+ bla bla bla blub");
+        for (String msg : capturedLines) {
+            assertTrue(msg + " does not match the expected regex", msgRegex.matcher(msg).matches());
+        }
+    }
+
+    /**
+     * Test whether a single large log message can be logged to System.out without error.
+     *
+     * @throws InterruptedException
+     */
+    @Test
+    public void test_large_log_message() throws InterruptedException {
+        KerberosLogger.startCapture(LEVEL.DEBUG);
+
+        final byte[] randomBytes = new byte[40 * 1024];
+        ThreadLocalRandom.current().nextBytes(randomBytes);
+        final String base64EncodedRandom = Base64.getEncoder().encodeToString(randomBytes);
+
+        System.out.println(base64EncodedRandom);
+        final List<String> capturedLines = KerberosLogger.getCapturedLines();
+        KerberosLogger.stopCapture();
+
+        assertEquals(1, capturedLines.size());
+        assertTrue(capturedLines.get(0).endsWith(base64EncodedRandom));
+        assertEquals(21 + base64EncodedRandom.length(), capturedLines.get(0).length());
+    }
 }
