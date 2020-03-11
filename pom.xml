@@ -24,7 +24,7 @@
 	<modules>
 		<!-- Plugins/bundles and features do not require a pom.xml because we are using tycho's pom-less build feature-->
 		<module>org.knime.kerberos</module>
-		<!-- <module>org.knime.kerberos.testing</module> -->
+		<module>org.knime.kerberos.tests</module>
 		<module>org.knime.features.kerberos</module>
 		<module>org.knime.update.kerberos</module>
 	</modules>

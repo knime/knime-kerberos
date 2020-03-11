@@ -12,12 +12,13 @@ properties([
 ])
 
 try {
+    // junit tests are executed together with tycho build
     knimetools.defaultTychoBuild('org.knime.update.kerberos')
 
     stage('Sonarqube analysis') {
         env.lastStage = env.STAGE_NAME 
         workflowTests.runSonar([])
-	} 
+    }
 } catch (ex) {
     currentBuild.result = 'FAILURE'
     throw ex
