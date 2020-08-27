@@ -15,6 +15,10 @@
   <artifactId>org.knime.kerberos.tests</artifactId>
   <version>${revision}${changelist}</version>
   <packaging>eclipse-test-plugin</packaging>
+  
+    <properties>
+        <revision>4.3.0</revision>
+    </properties>
 
 	<dependencies>
 		<dependency>
