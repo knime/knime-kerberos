@@ -17,8 +17,8 @@ try {
     knimetools.defaultTychoBuild('org.knime.update.kerberos')
 
     stage('Sonarqube analysis') {
-        env.lastStage = env.STAGE_NAME 
-        workflowTests.runSonar([])
+        env.lastStage = env.STAGE_NAME
+        workflowTests.runSonar()
     }
 } catch (ex) {
     currentBuild.result = 'FAILURE'
