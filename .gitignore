@@ -3,4 +3,5 @@
 */build/
 */.polyglot.build.properties
 *.jar
-.flattened-pom.xml
+**/.flattened-pom.xml
+**/CHANGELOG.md
