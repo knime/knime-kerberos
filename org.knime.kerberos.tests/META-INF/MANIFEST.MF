@@ -6,7 +6,7 @@ Bundle-Version: 4.4.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Fragment-Host: org.knime.kerberos
 Automatic-Module-Name: org.knime.kerberos.tests
-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: org.junit;bundle-version="4.12.0",
  org.apache.commons.io;bundle-version="2.6.0",
  org.slf4j.api;bundle-version="1.7.2",
@@ -15,23 +15,4 @@ Require-Bundle: org.junit;bundle-version="4.12.0",
  org.mockito.mockito-core;bundle-version="2.18.3",
  net.bytebuddy.byte-buddy;bundle-version="1.8.11",
  org.objenesis;bundle-version="2.6.0"
-Bundle-ClassPath: knime.jar,
- libs/hadoop-minikdc-3.1.1.jar,
- libs/jcip-annotations-1.0.jar,
- libs/json-smart-1.3.1.jar,
- libs/kerb-admin-1.0.1.jar,
- libs/kerb-client-1.0.1.jar,
- libs/kerb-common-1.0.1.jar,
- libs/kerb-core-1.0.1.jar,
- libs/kerb-crypto-1.0.1.jar,
- libs/kerb-identity-1.0.1.jar,
- libs/kerb-server-1.0.1.jar,
- libs/kerb-simplekdc-1.0.1.jar,
- libs/kerb-util-1.0.1.jar,
- libs/kerby-asn1-1.0.1.jar,
- libs/kerby-config-1.0.1.jar,
- libs/kerby-pkix-1.0.1.jar,
- libs/kerby-util-1.0.1.jar,
- libs/kerby-xdr-1.0.1.jar,
- libs/nimbus-jose-jwt-3.10.jar,
- libs/token-provider-1.0.1.jar
+Bundle-ClassPath: knime.jar

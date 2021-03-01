@@ -1,26 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry exported="true" kind="lib" path="libs/hadoop-minikdc-3.1.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/jcip-annotations-1.0.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/json-smart-1.3.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-admin-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-client-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-common-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-core-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-crypto-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-identity-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-server-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-simplekdc-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerb-util-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerby-asn1-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerby-config-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerby-pkix-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerby-util-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/kerby-xdr-1.0.1.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/nimbus-jose-jwt-3.10.jar"/>
-	<classpathentry exported="true" kind="lib" path="libs/token-provider-1.0.1.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
-	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="src">
+		<attributes>
+			<attribute name="test" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
