@@ -20,15 +20,31 @@
 		<feature-branch-extension.appendArtifactoryProperties>false</feature-branch-extension.appendArtifactoryProperties>
 	</properties>
 
-	<modules>
-		<!-- Plugins/bundles and features do not require a pom.xml because we are using tycho's pom-less build feature-->
-		<module>org.knime.kerberos</module>
-		<module>org.knime.kerberos.tests</module>
-		<module>org.knime.features.kerberos</module>
-		<module>org.knime.update.kerberos</module>
-	</modules>
+  <profiles>
+    <profile>
+      <id>build</id>
+      <modules>
+        <module>org.knime.kerberos</module>
+        <module>org.knime.features.kerberos</module>
+        <module>org.knime.update.kerberos</module>
+      </modules>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+    </profile>
 
-    <repositories>
+    <profile>
+      <id>test</id>
+      <modules>
+        <module>org.knime.kerberos</module>
+        <module>org.knime.kerberos.tests</module>
+        <module>org.knime.features.kerberos</module>
+        <module>org.knime.update.kerberos</module>
+      </modules>
+    </profile>
+  </profiles>
+
+  <repositories>
 		<repository>
 			<id>p2-knime-core</id>
 			<layout>p2</layout>

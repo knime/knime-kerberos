@@ -13,8 +13,14 @@ properties([
 ])
 
 try {
-    // junit tests are executed together with tycho build
-    knimetools.defaultTychoBuild('org.knime.update.kerberos')
+    parallel (
+        'Tycho Build': {
+            knimetools.defaultTychoBuild('org.knime.update.kerberos')
+        },
+        'Integrated Workflowtests': {
+            workflowTests.runIntegratedWorkflowTests(profile: 'test')
+        },
+    )
 
     stage('Sonarqube analysis') {
         env.lastStage = env.STAGE_NAME
