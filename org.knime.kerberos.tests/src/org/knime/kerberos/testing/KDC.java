@@ -48,8 +48,10 @@
  */
 package org.knime.kerberos.testing;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
@@ -120,8 +122,7 @@ public class KDC {
     /**
      * Try to guess the default credentials cache file name.
      */
-    @SuppressWarnings("restriction")
-    private static String getDefaultFileCredentialsCacheName() {
+    private static String getDefaultFileCredentialsCacheName() throws IOException {
         final String stdCacheNameComponent = "krb5cc";
 
         // 1. KRB5CCNAME (bare file name without FILE:)
@@ -136,10 +137,9 @@ public class KDC {
 
         // 2. /tmp/krb5cc_<uid> on unix systems
         if (!System.getProperty("os.name").startsWith("Windows")) {
-            final long uid = new com.sun.security.auth.module.UnixSystem().getUid();
+            final long uid = getUnixUid();
             return File.separator + "tmp" + File.separator + stdCacheNameComponent + "_" + uid;
         }
-
 
         final String userName = System.getProperty("user.name");
         String userHome = System.getProperty("user.home");
@@ -154,6 +154,13 @@ public class KDC {
         // 4. <user.home>/krb5cc
         } else {
             return userHome + File.separator + stdCacheNameComponent;
+        }
+    }
+
+    private static long getUnixUid() throws IOException {
+        Process child = Runtime.getRuntime().exec("id -u");
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(child.getInputStream()))) {
+            return Long.parseLong(in.readLine());
         }
     }
 
