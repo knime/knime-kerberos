@@ -79,12 +79,6 @@ import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.logger.KerberosLogger;
 
-import sun.security.jgss.krb5.Krb5Util;
-import sun.security.krb5.Config;
-import sun.security.krb5.KrbException;
-import sun.security.krb5.internal.ccache.Credentials;
-import sun.security.krb5.internal.ccache.CredentialsCache;
-
 /**
  * Stateful class that holds the current state of the Kerberos login and offers basic operations on top of this state,
  * such as logging in, logging out etc. The state is held in static members and can be modified with static methods.
@@ -96,7 +90,6 @@ import sun.security.krb5.internal.ccache.CredentialsCache;
  *
  * @author Bjoern Lohrmann, KNIME Gmbh
  */
-@SuppressWarnings("restriction")
 public class KerberosAuthManager {
 
     /**
@@ -174,13 +167,6 @@ public class KerberosAuthManager {
         }
 
         KerberosLogger.stopCapture();
-
-        try {
-            Config.refresh();
-        } catch (KrbException e) {
-            // we only log this as debug because we can safely ignore it
-            LOG.debug("Failed refresh Kerberos config: " + e.getMessage(), e);
-        }
     }
 
     private static void restoreSystemProperties() {
@@ -216,10 +202,9 @@ public class KerberosAuthManager {
      * If this method throws an error, then {@link #rollbackToInitialState()} must be called.
      *
      * @param config
-     * @throws KrbException
      * @throws IOException
      */
-    public static void configure(final KerberosPluginConfig config) throws KrbException, IOException {
+    public static void configure(final KerberosPluginConfig config) throws IOException {
         LOG.debug("Trying to configure Kerberos");
 
         // starts capturing the stdout until rollback
@@ -230,11 +215,10 @@ public class KerberosAuthManager {
         validateConfigShallow(config);
         backupSystemProperties();
         setupSystemProperties(config);
-        KerberosPluginConfigValidator.preRefreshValidate(config);
 
         // ! I/O
-        Config.refresh();
         KerberosPluginConfigValidator.postRefreshValidate(config);
+
         loginPluginConfig = config;
     }
 
@@ -462,15 +446,17 @@ public class KerberosAuthManager {
 
         boolean toReturn = true;
 
-        final CredentialsCache cache = CredentialsCache.getInstance(CredentialsCache.cacheName());
-        if (cache != null) {
-            final Credentials creds = cache.getDefaultCreds();
-            if (creds != null) {
-                final KerberosTicket tgt = getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
-                if (Krb5Util.credsToTicket(creds.setKrbCreds()).equals(tgt)) {
-                    toReturn = false;
-                }
+        try {
+            final LoginContext tmpLoginContext =
+                new LoginContext("KNIMEKerberosLoginContext", null, TicketCacheChangedCheckCallbackHandler.INSTANCE, new KerberosJAASConfiguration(loginPluginConfig));
+            tmpLoginContext.login();
+            final KerberosTicket tmpTicket = tmpLoginContext.getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
+            final KerberosTicket tgt = getSubject().getPrivateCredentials(KerberosTicket.class).iterator().next();
+            if (tmpTicket != null && tmpTicket.equals(tgt)) {
+                toReturn = false;
             }
+        } catch (final LoginException ex) { // NOSONAR
+            // failed to get ticket = ticket has changed
         }
 
         return toReturn;

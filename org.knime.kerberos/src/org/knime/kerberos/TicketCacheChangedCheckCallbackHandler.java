@@ -42,75 +42,41 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
- *
- * History
- *   17.01.2019 (Mareike Hoeger, KNIME GmbH, Konstanz, Germany): created
  */
 package org.knime.kerberos;
 
-import java.io.File;
 import java.io.IOException;
 
-import javax.security.auth.kerberos.KerberosPrincipal;
-import javax.security.auth.kerberos.KeyTab;
-
-import org.knime.kerberos.config.KerberosPluginConfig;
-import org.knime.kerberos.config.PrefKey.AuthMethod;
-import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.UnsupportedCallbackException;
 
 /**
- * Provides utility methods that performs deeper validation of a
- * {@link KerberosPluginConfig}.
+ * A callback handler that always fails.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Sascha Wolke, KNIME GmbH
  */
-public class KerberosPluginConfigValidator {
+public final class TicketCacheChangedCheckCallbackHandler implements CallbackHandler {
+
+    private static final String ERROR_MESSAGE = "Ticket cache has changed check does not support callback handlers.";
 
     /**
-     * Validates Kerberos preferences, before we try to actually load any configuration. This method does not change any
-     * system state, but may perform file and network I/O.
-     *
-     * @param config
-     *
-     * @throws IOException
-     * @throws IllegalArgumentException
+     * Singleton instance.
      */
-    private static void validateKeytabAndPrincipal(final KerberosPluginConfig config) {
-        final KerberosPrincipal kerberosPrincipal =
-            new KerberosPrincipal(config.getKeytabPrincipal(), KerberosPrincipal.KRB_NT_PRINCIPAL);
-        final KeyTab keyTab = KeyTab.getInstance(kerberosPrincipal, new File(config.getKeytabFile()));
+    public static final TicketCacheChangedCheckCallbackHandler INSTANCE = new TicketCacheChangedCheckCallbackHandler();
 
-        if (keyTab.getKeys(kerberosPrincipal).length == 0) {
-            throw new IllegalArgumentException(
-                String.format("Keytab file does not contain any keys for principal '%s'", config.getKeytabPrincipal()));
-        }
+    private TicketCacheChangedCheckCallbackHandler() {
+        // singleton
     }
 
     /**
-     * Performs further validation of Kerberos preferences and the loaded Kerberos config.
-     *
-     * @param config
-     *
-     * @throws IllegalArgumentException
+     * Always fails if callback given.
      */
-    public static void postRefreshValidate(final KerberosPluginConfig config) {
-        if (config.getAuthMethod() == AuthMethod.KEYTAB) {
-            validateKeytabAndPrincipal(config);
-
-            if (config.getKerberosConfSource() == KerberosConfigSource.REALM_KDC) {
-                checkRealmForKeytabPrincipal(config);
-            }
+    @Override
+    public void handle(final Callback[] callbacks) throws IOException, UnsupportedCallbackException {
+        if (callbacks.length > 0) {
+            throw new UnsupportedCallbackException(callbacks[0], ERROR_MESSAGE);
         }
     }
 
-    private static void checkRealmForKeytabPrincipal(final KerberosPluginConfig config) {
-        final KerberosPrincipal kerberosPrincipal =
-                new KerberosPrincipal(config.getKeytabPrincipal(), KerberosPrincipal.KRB_NT_PRINCIPAL);
-        final String principalRealm = kerberosPrincipal.getRealm();
-        if (!principalRealm.equals(config.getRealm())) {
-            throw new IllegalArgumentException(
-                String.format("The configured realm '%s' does not match realm %s from keytab principal",
-                    config.getRealm(), principalRealm));
-        }
-    }
 }

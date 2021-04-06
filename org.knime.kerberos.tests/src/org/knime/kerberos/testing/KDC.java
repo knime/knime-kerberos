@@ -58,8 +58,6 @@ import java.util.Properties;
 
 import org.apache.hadoop.minikdc.MiniKdc;
 
-import sun.security.krb5.internal.ccache.FileCredentialsCache;
-
 /**
  * A KDC for unit-testing purposes, based on Hadoop's MiniKDC.
  *
@@ -115,13 +113,49 @@ public class KDC {
         m_keytabPrincipal = KEYTAB_USER + "@" + m_realm;
 
         m_kdc.createPrincipal(USER, PWD);
-        File ccFile = new File(FileCredentialsCache.getDefaultCacheName());
+        File ccFile = new File(getDefaultFileCredentialsCacheName());
         m_ccFile = ccFile.getAbsolutePath();
     }
 
+    /**
+     * Try to guess the default credentials cache file name.
+     */
+    @SuppressWarnings("restriction")
+    private static String getDefaultFileCredentialsCacheName() {
+        final String stdCacheNameComponent = "krb5cc";
+
+        // 1. KRB5CCNAME (bare file name without FILE:)
+        final String cacheEnv = System.getenv("KRB5CCNAME");
+        if (cacheEnv != null && !cacheEnv.isEmpty()) {
+            if (cacheEnv.toLowerCase().startsWith("file:")) {
+                return cacheEnv.substring(5);
+            } else {
+                return cacheEnv;
+            }
+        }
+
+        // 2. /tmp/krb5cc_<uid> on unix systems
+        if (!System.getProperty("os.name").startsWith("Windows")) {
+            final long uid = new com.sun.security.auth.module.UnixSystem().getUid();
+            return File.separator + "tmp" + File.separator + stdCacheNameComponent + "_" + uid;
+        }
 
 
+        final String userName = System.getProperty("user.name");
+        String userHome = System.getProperty("user.home");
+        if (userHome == null) {
+            userHome = System.getProperty("user.dir");
+        }
 
+        // 3. <user.home>/krb5cc_<user.name>
+        if (userName != null) {
+            return userHome + File.separator + stdCacheNameComponent + "_" + userName;
+
+        // 4. <user.home>/krb5cc
+        } else {
+            return userHome + File.separator + stdCacheNameComponent;
+        }
+    }
 
     /**
      * Stops the KDC

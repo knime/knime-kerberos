@@ -105,7 +105,7 @@ public class KerberosJAASConfiguration extends Configuration {
     private static Map<String, String> createParametersForUserPwdLogin(final KerberosPluginConfig config) {
         Map<String, String> parameters = new HashMap<>();
         parameters.put("debug", Boolean.toString(config.doDebugLogging()));
-        parameters.put("refreshKrb5Config", "false");
+        parameters.put("refreshKrb5Config", "true");
         parameters.put("useTicketCache", "false");
         parameters.put("useKeyTab", "false");
         parameters.put("useFirstPass", "false");
@@ -119,7 +119,7 @@ public class KerberosJAASConfiguration extends Configuration {
     private static Map<String, String> createParametersForTicketCacheLogin(final KerberosPluginConfig config) {
         Map<String, String> parameters = new HashMap<>();
         parameters.put("debug", Boolean.toString(config.doDebugLogging()));
-        parameters.put("refreshKrb5Config", "false");
+        parameters.put("refreshKrb5Config", "true");
         parameters.put("useTicketCache", "true");
         if(config.isTestConfiguration()) {
             parameters.put("ticketCache", config.getTicketCache());
@@ -136,7 +136,7 @@ public class KerberosJAASConfiguration extends Configuration {
 
         Map<String, String> parameters = new HashMap<>();
         parameters.put("debug", Boolean.toString(config.doDebugLogging()));
-        parameters.put("refreshKrb5Config", "false");
+        parameters.put("refreshKrb5Config", "true");
         parameters.put("useTicketCache", "false");
         parameters.put("useKeyTab", "true");
         parameters.put("useFirstPass", "false");

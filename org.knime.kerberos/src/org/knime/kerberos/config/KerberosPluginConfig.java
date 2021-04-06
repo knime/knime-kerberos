@@ -48,6 +48,10 @@
  */
 package org.knime.kerberos.config;
 
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -456,12 +460,8 @@ public class KerberosPluginConfig {
                 }
                 break;
             case REALM_KDC:
-                if (!hasRealm()) {
-                    errors.add("Realm must be specified.");
-                }
-                if (!hasKDC()) {
-                    errors.add("KDC must be specified.");
-                }
+                validateRealm(errors);
+                validateKDC(errors);
                 break;
         }
 
@@ -475,6 +475,8 @@ public class KerberosPluginConfig {
             case KEYTAB:
                 if (!hasKeytabPrincipal()) {
                     errors.add("Keytab principal must be specified.");
+                } else if (getKeytabPrincipal().equals("*")) {
+                    errors.add("Principal '*' is not allowed as keytab principal.");
                 }
 
                 if (!hasKeytabFile()) {
@@ -493,6 +495,46 @@ public class KerberosPluginConfig {
             LogLevel.valueOf(getDebugLogLevel());
         } catch (LogLevelFormatException ex) {
             errors.add(String.format("Debug log level '%s' is not a valid log level.", getDebugLogLevel()));
+        }
+    }
+
+    /**
+     * Validate that realm is not empty and contains only valid characters.
+     */
+    private void validateRealm(final List<String> errors) {
+        if (!hasRealm()) {
+            errors.add("Realm must be specified.");
+        } else if (getRealm().contains("/")) {
+            errors.add("Realm contains illegal character '/'.");
+        } else if (getRealm().contains("\0")) {
+            errors.add("Realm contains illegal character '\0'.");
+        }
+    }
+
+    /**
+     * Validate that KDC is not empty and host can be resolved.
+     */
+    private void validateKDC(final List<String> errors) {
+        if (!hasKDC()) {
+            errors.add("KDC must be specified.");
+        } else {
+            try {
+                // Let the URI class do the parsing of the possible host:port string
+                URI uri = new URI("test://" + getKDC());
+                String host = uri.getHost();
+
+                if(host == null || host.trim().isEmpty()) {
+                    errors.add("KDC host name must be specified if port is used.");
+                } else {
+                    // network I/O!
+                    InetAddress.getByName(host);
+                }
+
+            } catch (URISyntaxException ex) {
+                errors.add(String.format("KDC %s is invalid. %s", getKDC(), ex.getMessage()));
+            } catch (UnknownHostException ex) {
+                errors.add(String.format("KDC %s contains unknown host.", getKDC()));
+            }
         }
     }
 
