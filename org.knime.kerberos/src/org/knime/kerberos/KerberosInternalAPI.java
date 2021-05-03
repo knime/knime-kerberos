@@ -76,11 +76,10 @@ public class KerberosInternalAPI {
      *
      *
      * @return a Future that returns nothing. {@link Future#get()} might throw an {@link ExecutionException} caused by
-     *         {@link sun.security.krb5.KrbException} or {@link IOException} if configuration is invalid. It will throw
+     *         {@link IllegalArgumentException} or {@link IOException} if configuration is invalid. It will throw
      *         an {@link ExecutionException} caused by {@link IllegalStateException} if the user is currently
      *         authenticated and logoutIfNecessary is false.
      */
-    @SuppressWarnings("restriction")
     public static Future<Void> validateConfig(final KerberosPluginConfig config, final boolean logoutIfNecessary) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
 
