@@ -107,12 +107,11 @@ public class KerberosInternalAPI {
      * @param handler the callbackHandler to use in case of user/password authentication
      *
      * @return a Future for a {@link KerberosState} with the result of the successful login. The {@link Future#get()}
-     *         might throw an {@link ExecutionException} caused by {@link sun.security.krb5.KrbException} or
+     *         might throw an {@link ExecutionException} caused by {@link IllegalArgumentException} or
      *         {@link IOException} if configuration is invalid, or a {@link LoginException} if the login fails. It will
      *         throw an {@link ExecutionException} caused by {@link IllegalStateException} if already authenticated.
      *
      */
-    @SuppressWarnings("restriction")
     public static Future<KerberosState> login(final KerberosPluginConfig config, final KerberosUserPwdAuthCallbackHandler handler) {
         return KerberosAuthManager.EXECUTOR.submit(() -> {
 
