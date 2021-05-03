@@ -85,7 +85,6 @@ import org.knime.kerberos.testing.Util;
  *
  * @author Mareike Hoeger, KNIME GmbH
  */
-@SuppressWarnings("restriction")
 public class KerberosInternalAPITest {
 
     private static KDC testKDC;
@@ -483,7 +482,7 @@ public class KerberosInternalAPITest {
      * Tests configuration with Realm & KDC, with invalid realm in keytab principal. Expects "IllegalArgumentException:
      * Illegal character in realm name; one of: '/', ':', '".
      *
-     * @throws IllegalArgumentException
+     * @throws Throwable
      */
     @Test(expected = IllegalArgumentException.class)
     public void test_validateConfig_with_RealmKDC_and_invalid_keytab_principal() throws Throwable {

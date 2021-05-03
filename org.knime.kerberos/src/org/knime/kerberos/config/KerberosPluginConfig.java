@@ -530,9 +530,9 @@ public class KerberosPluginConfig {
                     InetAddress.getByName(host);
                 }
 
-            } catch (URISyntaxException ex) {
+            } catch (URISyntaxException ex) { // NOSONAR error added to list
                 errors.add(String.format("KDC %s is invalid. %s", getKDC(), ex.getMessage()));
-            } catch (UnknownHostException ex) {
+            } catch (UnknownHostException ex) { // NOSONAR error added to list
                 errors.add(String.format("KDC %s contains unknown host.", getKDC()));
             }
         }
