@@ -54,9 +54,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.minikdc.MiniKdc;
 
@@ -233,4 +235,64 @@ public class KDC {
     public String getKdcConfPath() {
         return m_krbConfPath;
     }
+
+    /**
+     * Write a krb5.conf client configuration file using "tcp/" as KDC hostname prefix and all other values from the KDC
+     * config.
+     *
+     * Note: The file has to be named "krb5.conf" otherwise Heimdal ignores it...
+     *
+     * @return path of client configuration
+     * @throws IOException
+     */
+    private String writeHeimdalTcpClientConfig() throws IOException {
+        final Path tmpDir = Files.createTempDirectory("heimdal-client-config");
+        final Path tmpConf = tmpDir.resolve("krb5.conf");
+        final String oriConfig = Files.readString(Paths.get(m_krbConfPath));
+        final String newConfig = oriConfig.replaceAll("kdc = .*\n", "kdc = tcp/" + m_kdcHost + "\n");
+        Files.writeString(tmpConf, newConfig);
+        return tmpConf.toString();
+    }
+
+    /**
+     * Create a ticket cache file using kinit.
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public void createTicketCacheWithKinit() throws IOException, InterruptedException {
+        String kinit = "kinit";
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            // Windows will try to use the java kinit if we do not point it to MIT specifically
+            String mitPath =
+                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
+            kinit = mitPath + File.separator + "kinit";
+        }
+        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", getCcFile(), "-k", "-t",
+            getKeytabFilePath(), getKeytabPrincipal());
+        pb.environment().put("KRB5CCNAME", getCcFile());
+        if (System.getProperty("os.name").toUpperCase().contains("OS X")) { // Heimdal client
+            pb.environment().put("KRB5_CONFIG", writeHeimdalTcpClientConfig());
+        } else { // MIT client
+            pb.environment().put("KRB5_CONFIG", getKdcConfPath());
+        }
+        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        Process proc = pb.start();
+        proc.waitFor();
+        if (proc.exitValue() != 0) {
+            throw new RuntimeException("Could not obtain ticket via kinit");
+        }
+    }
+
+    /**
+     * Delete ticket cache file if it exists.
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public void deleteTicketCache() throws IOException, InterruptedException {
+        Files.deleteIfExists(Paths.get(getCcFile()));
+    }
+
 }

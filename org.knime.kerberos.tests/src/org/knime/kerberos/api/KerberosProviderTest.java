@@ -55,16 +55,11 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.AccessController;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
@@ -224,6 +219,8 @@ public class KerberosProviderTest {
      */
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_with_missing_ticketCache() throws Exception {
+        testKDC.deleteTicketCache();
+
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
@@ -420,16 +417,16 @@ public class KerberosProviderTest {
     @Test
     public void test_doWithKerberosAuth_with_deleted_ticket_cache() throws Exception {
 
-        createTicketCacheWithKinit();
+        testKDC.createTicketCacheWithKinit();
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, false, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
 
-        deleteTicketCache();
+        testKDC.deleteTicketCache();
 
         config.save();
         try {
@@ -452,20 +449,20 @@ public class KerberosProviderTest {
     @Test
     public void test_doWithKerberosAuth_with_updated_ticket_cache() throws Exception {
 
-        createTicketCacheWithKinit();
+        testKDC.createTicketCacheWithKinit();
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, false, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
         final Instant expiryTime = KerberosAuthManager.getKerberosState().getTicketValidUntil();
 
-        deleteTicketCache();
+        testKDC.deleteTicketCache();
         // we need to sleep one second because the expiry timestamp only has second precision
         Thread.sleep(1000);
-        createTicketCacheWithKinit();
+        testKDC.createTicketCacheWithKinit();
 
         config.save();
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
@@ -474,39 +471,6 @@ public class KerberosProviderTest {
         // assert we are still authenticated but that we have picked up the new ticket
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
         assertTrue(KerberosAuthManager.getKerberosState().getTicketValidUntil().isAfter(expiryTime));
-    }
-
-    /**
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    private static void deleteTicketCache() throws IOException, InterruptedException {
-        Files.delete(Paths.get(testKDC.getCcFile()));
-    }
-
-    /**
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    private static void createTicketCacheWithKinit() throws IOException, InterruptedException {
-        String kinit = "kinit";
-        if (System.getProperty("os.name").startsWith("Windows")) {
-            //Windows will try to use the java kinit if we do not point it to MIT specifically
-            String mitPath =
-                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
-            kinit = mitPath + File.separator + "kinit";
-        }
-        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", testKDC.getCcFile(), "-k", "-t",
-            testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
-        pb.environment().put("KRB5CCNAME", testKDC.getCcFile());
-        pb.environment().put("KRB5_CONFIG", testKDC.getKdcConfPath());
-        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        Process proc = pb.start();
-        proc.waitFor();
-        if (proc.exitValue() != 0) {
-            throw new RuntimeException("Could not obtain ticket via kinit");
-        }
     }
 
     private static KerberosPluginConfig createKeytabKerberosConfig() {

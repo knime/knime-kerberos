@@ -70,7 +70,11 @@ public class Util {
         try {
             return future.get();
         } catch (ExecutionException e) {
-            throw (Exception)e.getCause();
+            if (e.getCause() instanceof Error) {
+                throw (Error)e.getCause();
+            } else {
+                throw (Exception)e.getCause();
+            }
         }
     }
 }

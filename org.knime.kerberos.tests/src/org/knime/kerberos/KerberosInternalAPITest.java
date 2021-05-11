@@ -52,13 +52,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
-import java.util.stream.Stream;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.NameCallback;
@@ -680,28 +678,11 @@ public class KerberosInternalAPITest {
      */
     @Test
     public void test_renewal_with_renewable_ticket_from_ticket_cache() throws Exception {
-        String kinit = "kinit";
-        if (System.getProperty("os.name").startsWith("Windows")) {
-            //Windows will try to use the java kinit if we do not point it to MIT specifically
-            String mitPath =
-                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
-            kinit = mitPath + File.separator + "kinit";
-        }
-        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", testKDC.getCcFile(), "-k", "-t",
-            testKDC.getKeytabFilePath(), testKDC.getKeytabPrincipal());
-        pb.environment().put("KRB5CCNAME", testKDC.getCcFile());
-        pb.environment().put("KRB5_CONFIG", testKDC.getKdcConfPath());
-        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        Process proc = pb.start();
-        proc.waitFor();
-        if (proc.exitValue() != 0) {
-            throw new RuntimeException("Could not obtain ticket via kinit");
-        }
+        testKDC.createTicketCacheWithKinit();
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, false, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, true, testKDC.getCcFile());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         Instant prevValidUntil = KerberosAuthManager.getKerberosState().getTicketValidUntil();
