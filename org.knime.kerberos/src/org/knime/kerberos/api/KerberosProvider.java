@@ -210,7 +210,7 @@ public class KerberosProvider {
         return getFutureResult(doWithKerberosAuth(callback), exec);
     }
 
-    private static <T> T getFutureResult(final Future<T> future, final ExecutionMonitor exec)
+    static <T> T getFutureResult(final Future<T> future, final ExecutionMonitor exec)
         throws Exception {
 
         if (exec != null) {
