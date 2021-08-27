@@ -48,14 +48,19 @@
  */
 package org.knime.kerberos.api;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Future;
 
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
+import javax.security.auth.kerberos.KerberosTicket;
 import javax.security.auth.login.LoginException;
 
 import org.eclipse.core.runtime.Plugin;
@@ -71,6 +76,14 @@ import org.knime.core.node.workflow.NodeContext;
 import org.knime.core.util.KNIMERuntimeContext;
 
 import com.sun.security.jgss.ExtendedGSSCredential;
+
+import sun.security.jgss.GSSCredentialImpl;
+import sun.security.jgss.krb5.Krb5InitCredential;
+import sun.security.jgss.krb5.Krb5ProxyCredential;
+import sun.security.jgss.krb5.Krb5Util;
+import sun.security.krb5.Credentials;
+import sun.security.krb5.PrincipalName;
+import sun.security.krb5.internal.CredentialsUtil;
 
 /**
  * Provides Kerberos authentication with
@@ -165,7 +178,7 @@ public final class KerberosDelegationProvider {
 
             if (KNIMERuntimeContext.INSTANCE.runningInServerContext()) {
                 final GSSName nameToImpersonate = GSSManager.getInstance() //
-                    .createName(getUserToImpersonate(), GSSName.NT_USER_NAME, GSS_MECHANISM);
+                    .createName(getPrincipalToImpersonate(), GSSName.NT_USER_NAME, GSS_MECHANISM);
 
                 LOG.debugWithFormat("Impersonating Kerberos principal %s with Kerberos constrained delegation (MS-SFU)",
                     nameToImpersonate.toString());
@@ -182,20 +195,29 @@ public final class KerberosDelegationProvider {
         });
     }
 
-    private static String getUserToImpersonate() {
-        final KerberosPrincipal krbPrincipal = Subject.getSubject(AccessController.getContext()) //
-            .getPrincipals(KerberosPrincipal.class) //
-            .iterator() //
-            .next();
+    private static String getPrincipalToImpersonate() {
+        final String serverRealm = getServerRealm();
+        final String workflowUser = getUserToImpersonate();
+        return String.format("%s@%s", workflowUser, serverRealm);
+    }
 
+    private static String getUserToImpersonate() {
         final String workflowUser = NodeContext.getWorkflowUser() //
             .orElseThrow(() -> new IllegalStateException("Could not determine workflow user to impersonate"));
+        return workflowUser;
+    }
 
-        return String.format("%s@%s", workflowUser, krbPrincipal.getRealm());
+
+    private static String getServerRealm() {
+        return Subject.getSubject(AccessController.getContext()) //
+            .getPrincipals(KerberosPrincipal.class) //
+            .iterator() //
+            .next() //
+            .getRealm();
     }
 
     /**
-     * Invokes the given callback with a {@link GSSCredential} that :
+     * Invokes the given callback with a {@link GSSCredential} that:
      * <ul>
      * <li>in KNIME Analytics Platform: belongs to the currently authenticated Kerberos principal</li>
      * <li>in a KNIME Server Executor: delegates to the current workflow user authenticated Kerberos principal, using
@@ -219,5 +241,136 @@ public final class KerberosDelegationProvider {
         }
 
         return KerberosProvider.getFutureResult(doWithConstrainedDelegationIfOnServer(callback), exec);
+    }
+
+
+    /**
+     * Invokes the given callback inside a {@link Subject#doAs(Subject, PrivilegedExceptionAction)}, where the subject
+     * has the following:
+     *
+     * <li>in KNIME Analytics Platform: Subject has the Kerberos TGT of the currently authenticated Kerberos
+     * principal</li>
+     * <li>in a KNIME Server Executor: Subject has a service ticket from the current workflow user to the given service
+     * (obtained using Microsoft constrained delegation (S4U2Self, S4U2Proxy)).</li>
+     * </ul>
+     *
+     * @param serviceName Kerberos name of the service (used to build the service principal for the service ticket).
+     * @param serviceHostname Fully qualified hostname of the service (used to build the service principal).
+     * @param callback A {@link KerberosCallback} which will be called inside
+     *            {@link Subject#doAs(Subject, PrivilegedExceptionAction)}
+     * @param exec An {@link ExecutionMonitor} that can be used to cancel the operation. May be null.
+     * @return the value of type T returned by the given callback.
+     * @throws CanceledExecutionException If the callback execution has been cancelled using the given
+     *             {@link ExecutionMonitor}, or by interrupting the current thread.
+     * @throws LoginException, when authentication is not done with keytab but the user is not already logged in.
+     * @throws Exception when the given callback threw an exception.
+     */
+    public static <T> T doWithConstrainedDelegationBlocking(final String serviceName, final String serviceHostname,
+        final KerberosCallback<T> callback, final ExecutionMonitor exec) throws Exception {
+
+        if (exec != null) {
+            exec.checkCanceled();
+        }
+
+        return KerberosProvider
+            .getFutureResult(doWithConstrainedDelegationIfOnServer(serviceName, serviceHostname, callback), exec);
+    }
+
+    /**
+     * Invokes the given callback inside a {@link Subject#doAs(Subject, PrivilegedExceptionAction)}, where the subject
+     * has the following:
+     *
+     * <li>in KNIME Analytics Platform: Subject has the Kerberos TGT of the currently authenticated Kerberos
+     * principal</li>
+     * <li>in a KNIME Server Executor: Subject has a service ticket from the current workflow user to the given service
+     * (obtained using Microsoft constrained delegation (S4U2Self, S4U2Proxy)).</li>
+     * </ul>
+     *
+     * @param serviceName Kerberos name of the service (used to build the service principal for the service ticket).
+     * @param serviceHostname Fully qualified hostname of the service (used to build the service principal).
+     * @param callback A {@link KerberosCallback} which will be called inside
+     *            {@link Subject#doAs(Subject, PrivilegedExceptionAction)}
+     * @return a Future with the return T of the callback.
+     */
+    public static <T> Future<T> doWithConstrainedDelegationIfOnServer(final String serviceName,
+        final String serviceHostname, final KerberosCallback<T> callback) {
+
+        if (KNIMERuntimeContext.INSTANCE.runningInServerContext()) {
+            return KerberosProvider
+                .doWithKerberosAuth(() -> doConstrainedDelegation(serviceName, serviceHostname, callback));
+        } else {
+            return KerberosProvider.doWithKerberosAuth(callback);
+        }
+    }
+
+    private static <T> T doConstrainedDelegation(final String serviceName, //
+        final String serviceHostname, //
+        final KerberosCallback<T> callback) throws Exception {
+
+        final Subject impersonatedSubject = createImpersonatedSubject(serviceName, serviceHostname);
+        final PrivilegedExceptionAction<T> action = () -> callback.doAuthenticated();
+        return Subject.doAs(impersonatedSubject, action);
+    }
+
+    private static Subject createImpersonatedSubject(final String targetServiceName, final String targetServiceHostname)
+        throws Exception {
+
+        // default credential created from the JAAS subject
+        final GSSCredentialImpl serverCredential =
+            (GSSCredentialImpl)GSSManager.getInstance().createCredential(GSSCredential.INITIATE_ONLY);
+
+        // holds s4u2self ticket: user -> knimeserver
+        final Krb5ProxyCredential s4u2SelfCredential =
+            getS42SelfCredential(getPrincipalToImpersonate(), serverCredential);
+
+        // holds s4u2proxy ticket: user -> targetservice
+        final KerberosTicket s4u2ProxyTicket =
+            getS4U2ProxyTicket(targetServiceName, targetServiceHostname, serverCredential, s4u2SelfCredential);
+
+        // create new subject for user, that holds s4u2proxy ticket ticket
+        return new Subject(false, //
+            Collections.singleton(new KerberosPrincipal(getPrincipalToImpersonate())), //
+            Collections.emptySet(), //
+            Collections.singleton(s4u2ProxyTicket));
+    }
+
+    private static KerberosTicket getS4U2ProxyTicket(final String targetServiceName, final String targetServiceHostname,
+        final GSSCredentialImpl serverCredential, final Krb5ProxyCredential s4u2SelfCredential) throws Exception {
+
+        final Credentials serverTgt = extractServerTgt(serverCredential);
+
+        final String targetServicePrincipal =
+            String.format("%s/%s@%s", targetServiceName, targetServiceHostname, getServerRealm());
+
+        final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetServicePrincipal, //
+            s4u2SelfCredential.tkt, //
+            new PrincipalName(getUserToImpersonate(), 0, getServerRealm()), //
+            serverTgt);
+
+        final KerberosTicket s4u2ProxyTicket = Krb5Util.credsToTicket(s4u2ProxyCredentials);
+        return s4u2ProxyTicket;
+    }
+
+    private static Krb5ProxyCredential getS42SelfCredential(final String principalToImpersonate,
+        final GSSCredentialImpl serverCredential) throws GSSException {
+        final GSSName nameToImpersonate = GSSManager.getInstance() //
+            .createName(principalToImpersonate, GSSName.NT_USER_NAME, GSS_MECHANISM);
+        final GSSCredentialImpl impersonatedCredential =
+            (GSSCredentialImpl)((ExtendedGSSCredential)serverCredential).impersonate(nameToImpersonate);
+        final Krb5ProxyCredential s4u2SelfCredential =
+            (Krb5ProxyCredential)impersonatedCredential.getElement(GSS_MECHANISM, true);
+        return s4u2SelfCredential;
+    }
+
+    private static Credentials extractServerTgt(final GSSCredentialImpl serverCredential)
+        throws GSSException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+
+        final Krb5InitCredential serverTgtCredential =
+            (Krb5InitCredential)serverCredential.getElement(new Oid(KERBEROS5_OID), true);
+
+        final Method method = serverTgtCredential.getClass().getDeclaredMethod("getKrb5Credentials");
+        method.setAccessible(true);
+        final Credentials tgtCreds = (Credentials)method.invoke(serverTgtCredential);
+        return tgtCreds;
     }
 }
