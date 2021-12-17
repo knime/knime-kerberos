@@ -13,14 +13,16 @@ properties([
 ])
 
 try {
-    parallel (
-        'Tycho Build': {
-            knimetools.defaultTychoBuild('org.knime.update.kerberos')
-        },
-        'Integrated Workflowtests': {
-            workflowTests.runIntegratedWorkflowTests(profile: 'test')
-        },
-    )
+    withCredentials([file(credentialsId: 'KNIME_KERBEROS_TEST_CONF', variable: 'KNIME_KERBEROS_TEST_CONF')]) {
+        parallel (
+            'Tycho Build': {
+                knimetools.defaultTychoBuild('org.knime.update.kerberos')
+            },
+            'Integrated Workflowtests': {
+                workflowTests.runIntegratedWorkflowTests(profile: 'test')
+            },
+        )
+    }
 
     stage('Sonarqube analysis') {
         env.lastStage = env.STAGE_NAME
