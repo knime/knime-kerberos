@@ -13,12 +13,13 @@ properties([
 ])
 
 try {
-    parallel (
+    parallel(
         'Tycho Build': {
             knimetools.defaultTychoBuild('org.knime.update.kerberos')
         },
         'Integrated Workflowtests': {
-            workflowTests.runIntegratedWorkflowTests(profile: 'test')
+            workflowTests.runIntegratedWorkflowTests(profile: 'test', //
+             extraCredentials: [file(credentialsId: 'KNIME_KERBEROS_TEST_CONF', variable: 'KNIME_KERBEROS_TEST_CONF')])
         },
     )
 
