@@ -257,7 +257,6 @@ public class KerberosInternalAPITest {
      */
     @Test
     public void test_login_with_RealmKDC_and_PrincipalPwd() throws Throwable {
-
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
@@ -327,6 +326,11 @@ public class KerberosInternalAPITest {
      */
     @Test
     public void test_login_with_RealmKDC_and_keytab_without_realm() throws Throwable {
+
+        // we need to make sure that we have a proper default realm configured. For this we do a quick login/logout
+        // using the full keytab principal
+        test_login_with_RealmKDC_and_keytab();
+        rollBack();
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
             testKDC.getKDCHost(), AuthMethod.KEYTAB, KDC.KEYTAB_USER, testKDC.getKeytabFilePath(), true,

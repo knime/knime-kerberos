@@ -1,0 +1,9 @@
+[libdefaults]
+ forwardable = true
+ # rdns = false
+ default_realm = %REALM%
+
+[realms]
+ %REALM% = {
+  kdc = %KDC%
+ }

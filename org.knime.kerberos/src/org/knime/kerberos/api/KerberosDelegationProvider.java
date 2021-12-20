@@ -73,9 +73,8 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.workflow.NodeContext;
-import org.knime.core.util.KNIMERuntimeContext;
 
-import com.sun.security.jgss.ExtendedGSSCredential;
+import com.sun.security.jgss.ExtendedGSSCredential; //NOSONAR we have to
 
 import sun.security.jgss.GSSCredentialImpl;
 import sun.security.jgss.krb5.Krb5InitCredential;
@@ -113,8 +112,8 @@ public final class KerberosDelegationProvider {
 
     private static Oid pickMech() {
         try {
-            final Oid spnego = new Oid(SPNEGO_OID);
-            final Oid kerberos5 = new Oid(KERBEROS5_OID);
+            final var spnego = new Oid(SPNEGO_OID);
+            final var kerberos5 = new Oid(KERBEROS5_OID);
 
             final Set<Oid> mechs =
                 new HashSet<>(Arrays.asList(GSSManager.getInstance().getMechsForName(GSSName.NT_USER_NAME)));
@@ -129,6 +128,9 @@ public final class KerberosDelegationProvider {
         } catch (GSSException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
+    }
+
+    private KerberosDelegationProvider() {
     }
 
     /**
@@ -176,7 +178,7 @@ public final class KerberosDelegationProvider {
             final GSSCredential credential = GSSManager.getInstance() //
                 .createCredential(GSSCredential.INITIATE_ONLY);
 
-            if (KNIMERuntimeContext.INSTANCE.runningInServerContext()) {
+            if (runningInServerContext()) {
                 final GSSName nameToImpersonate = GSSManager.getInstance() //
                     .createName(getPrincipalToImpersonate(), GSSName.NT_USER_NAME, GSS_MECHANISM);
 
@@ -193,6 +195,26 @@ public final class KerberosDelegationProvider {
             }
 
         });
+    }
+
+    private static boolean runningInServerContext() {
+        final var nodeContext = NodeContext.getContext();
+        if (nodeContext == null) {
+            return false;
+        }
+
+        final var wfm = nodeContext.getWorkflowManager();
+        if (wfm == null) {
+            return false;
+        }
+
+        final var workflowContext = wfm.getContext();
+        if (workflowContext == null) {
+            return false;
+        }
+
+        return workflowContext.getRemoteRepositoryAddress().isPresent()
+            && workflowContext.getServerAuthenticator().isPresent();
     }
 
     private static String getPrincipalToImpersonate() {
@@ -295,7 +317,7 @@ public final class KerberosDelegationProvider {
     public static <T> Future<T> doWithConstrainedDelegationIfOnServer(final String serviceName,
         final String serviceHostname, final KerberosCallback<T> callback) {
 
-        if (KNIMERuntimeContext.INSTANCE.runningInServerContext()) {
+        if (runningInServerContext()) {
             return KerberosProvider
                 .doWithKerberosAuth(() -> doConstrainedDelegation(serviceName, serviceHostname, callback));
         } else {

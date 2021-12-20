@@ -34,4 +34,5 @@ Bundle-ClassPath: knime.jar,
  libs/kerby-util-1.0.1.jar,
  libs/kerby-xdr-1.0.1.jar,
  libs/nimbus-jose-jwt-3.10.jar,
- libs/token-provider-1.0.1.jar
+ libs/token-provider-1.0.1.jar,
+ resources/
