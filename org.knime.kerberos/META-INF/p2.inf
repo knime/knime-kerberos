@@ -1,0 +1,13 @@
+instructions.install=\
+org.eclipse.equinox.p2.touchpoint.eclipse.addJvmArg(jvmArg:--add-opens=java.security.jgss/sun.security.jgss.krb5=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.addJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.jgss=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.addJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.jgss.spi=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.addJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.krb5.internal=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.addJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED);\
+
+instructions.uninstall=\
+org.eclipse.equinox.p2.touchpoint.eclipse.removeJvmArg(jvmArg:--add-opens=java.security.jgss/sun.security.jgss.krb5=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.removeJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.jgss=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.removeJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.jgss.spi=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.removeJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.krb5.internal=ALL-UNNAMED);\
+org.eclipse.equinox.p2.touchpoint.eclipse.removeJvmArg(jvmArg:--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED);\
