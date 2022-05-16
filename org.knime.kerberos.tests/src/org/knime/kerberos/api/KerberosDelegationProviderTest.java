@@ -85,7 +85,6 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.testing.ClassLoaderFinalClassMock;
 
 /**
  * Testcases for {@link KerberosDelegationProvider}.
@@ -263,21 +262,19 @@ public class KerberosDelegationProviderTest {
     }
 
     private NodeContext createServerWorkflowContext() {
-        // we need to be able to mock final classes here because NodeContext is final
-        return ClassLoaderFinalClassMock.doWithFinalClassMockingSupport(() -> {
-            final var nodeContextMock = mock(NodeContext.class);
+        // we need to be able to mock final classes here because NodeContext is final -> mockito-inline
+        final var nodeContextMock = mock(NodeContext.class);
 
-            final var wfmMock = mock(WorkflowManager.class);
-            when(nodeContextMock.getWorkflowManager()).thenReturn(wfmMock);
+        final var wfmMock = mock(WorkflowManager.class);
+        when(nodeContextMock.getWorkflowManager()).thenReturn(wfmMock);
 
-            final var wfContext = mock(WorkflowContext.class);
-            when(wfContext.getRemoteRepositoryAddress()).thenReturn(Optional.of(URI.create("https://doesntmatter")));
-            when(wfContext.getServerAuthenticator()).thenReturn(Optional.of(mock(Authenticator.class)));
-            when(wfContext.getUserid()).thenReturn(m_config.getUserToImpersonate());
-            when(wfmMock.getContext()).thenReturn(wfContext);
+        final var wfContext = mock(WorkflowContext.class);
+        when(wfContext.getRemoteRepositoryAddress()).thenReturn(Optional.of(URI.create("https://doesntmatter")));
+        when(wfContext.getServerAuthenticator()).thenReturn(Optional.of(mock(Authenticator.class)));
+        when(wfContext.getUserid()).thenReturn(m_config.getUserToImpersonate());
+        when(wfmMock.getContext()).thenReturn(wfContext);
 
-            return nodeContextMock;
-        });
+        return nodeContextMock;
     }
 
     /**
