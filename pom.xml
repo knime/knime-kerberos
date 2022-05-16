@@ -37,6 +37,7 @@
 			<id>test</id>
 			<modules>
 				<module>org.knime.kerberos</module>
+				<module>org.knime.kerberos.tests/libs/fetch_jars</module>
 				<module>org.knime.kerberos.tests</module>
 				<module>org.knime.features.kerberos</module>
 				<module>org.knime.update.kerberos</module>

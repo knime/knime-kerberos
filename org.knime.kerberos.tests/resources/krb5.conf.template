@@ -1,6 +1,7 @@
 [libdefaults]
  forwardable = true
  # rdns = false
+ allow_weak_crypto = true
  default_realm = %REALM%
 
 [realms]
