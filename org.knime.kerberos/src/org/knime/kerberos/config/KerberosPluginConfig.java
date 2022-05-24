@@ -55,10 +55,10 @@ import java.net.UnknownHostException;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-import org.apache.log4j.lf5.LogLevel;
-import org.apache.log4j.lf5.LogLevelFormatException;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.KerberosPlugin;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
@@ -491,10 +491,11 @@ public class KerberosPluginConfig {
                 break;
         }
 
+        String logLevelNonNull = Objects.requireNonNullElse(getDebugLogLevel(), "<null>");
         try {
-            LogLevel.valueOf(getDebugLogLevel());
-        } catch (LogLevelFormatException ex) {
-            errors.add(String.format("Debug log level '%s' is not a valid log level.", getDebugLogLevel()));
+            LEVEL.valueOf(logLevelNonNull);
+        } catch (IllegalArgumentException ex) {
+            errors.add(String.format("Debug log level '%s' is not a valid log level.", logLevelNonNull));
         }
     }
 
