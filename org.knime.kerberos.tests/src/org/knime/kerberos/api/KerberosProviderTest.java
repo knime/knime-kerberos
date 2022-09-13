@@ -81,7 +81,8 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.testing.KDC;
+import org.knime.kerberos.testing.KrbTicketCacheUtil;
+import org.knime.kerberos.testing.TestKDC;
 import org.knime.kerberos.testing.Util;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -91,9 +92,9 @@ import org.mockito.stubbing.Answer;
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class KerberosProviderTest {
+public class KerberosProviderTest extends KerberosProviderTestBase {
 
-    private static KDC testKDC;
+    private static TestKDC testKDC;
 
     /**
      * Sets up a test KDC.
@@ -102,7 +103,7 @@ public class KerberosProviderTest {
      */
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        testKDC = new KDC();
+        testKDC = new TestKDC();
     }
 
     /**
@@ -144,13 +145,6 @@ public class KerberosProviderTest {
         }
     }
 
-    private static void assertAuthenticated(final String principal) throws Exception {
-        final KerberosState state = KerberosProvider.getKerberosState();
-        assertTrue(state.isAuthenticated());
-        assertEquals(principal, state.getPrincipal());
-        assertFalse(KerberosLogger.getCapturedLines().isEmpty());
-    }
-
     /**
      * Test automatic keytab login in KerberosProvider.doWithKerberosAuth().
      *
@@ -182,7 +176,7 @@ public class KerberosProviderTest {
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
         config.save();
 
-        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(KDC.USER, KDC.PWD)));
+        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(TestKDC.USER, TestKDC.PWD)));
 
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
             final Subject s = Subject.getSubject(AccessController.getContext());
@@ -219,7 +213,7 @@ public class KerberosProviderTest {
      */
     @Test(expected = LoginException.class)
     public void test_doWithKerberosAuth_with_missing_ticketCache() throws Exception {
-        testKDC.deleteTicketCache();
+        KrbTicketCacheUtil.deleteTicketCache();
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
@@ -417,16 +411,16 @@ public class KerberosProviderTest {
     @Test
     public void test_doWithKerberosAuth_with_deleted_ticket_cache() throws Exception {
 
-        testKDC.createTicketCacheWithKinit();
+        final var ccFile = KrbTicketCacheUtil.createTicketCacheWithKinit(testKDC);
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, ccFile.toString());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
 
-        testKDC.deleteTicketCache();
+        KrbTicketCacheUtil.deleteTicketCache();
 
         config.save();
         try {
@@ -449,20 +443,20 @@ public class KerberosProviderTest {
     @Test
     public void test_doWithKerberosAuth_with_updated_ticket_cache() throws Exception {
 
-        testKDC.createTicketCacheWithKinit();
+        final var ccFile = KrbTicketCacheUtil.createTicketCacheWithKinit(testKDC);
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115000, true, true, ccFile.toString());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         assertTrue(KerberosAuthManager.getKerberosState().isAuthenticated());
         final Instant expiryTime = KerberosAuthManager.getKerberosState().getTicketValidUntil();
 
-        testKDC.deleteTicketCache();
+        KrbTicketCacheUtil.deleteTicketCache();
         // we need to sleep one second because the expiry timestamp only has second precision
         Thread.sleep(1000);
-        testKDC.createTicketCacheWithKinit();
+        KrbTicketCacheUtil.createTicketCacheWithKinit(testKDC);
 
         config.save();
         Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {

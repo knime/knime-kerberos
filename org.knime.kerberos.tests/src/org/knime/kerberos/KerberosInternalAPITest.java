@@ -53,9 +53,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 
 import javax.security.auth.callback.Callback;
@@ -75,7 +72,9 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.testing.KDC;
+import org.knime.kerberos.testing.KrbConfigUtil;
+import org.knime.kerberos.testing.KrbTicketCacheUtil;
+import org.knime.kerberos.testing.TestKDC;
 import org.knime.kerberos.testing.Util;
 
 /**
@@ -85,7 +84,7 @@ import org.knime.kerberos.testing.Util;
  */
 public class KerberosInternalAPITest {
 
-    private static KDC testKDC;
+    private static TestKDC testKDC;
 
     /**
      * Sets up a test testKDC.
@@ -94,7 +93,7 @@ public class KerberosInternalAPITest {
      */
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        testKDC = new KDC();
+        testKDC = new TestKDC();
     }
 
     /**
@@ -146,11 +145,11 @@ public class KerberosInternalAPITest {
     private static void testSuccessfulUserPasswordLogin(final KerberosPluginConfig config, final String username)
         throws Exception {
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
-        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(username, KDC.PWD)));
+        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(username, TestKDC.PWD)));
 
         final KerberosState state = KerberosAuthManager.getKerberosState();
         assertTrue(state.isAuthenticated());
-        assertEquals(KDC.USER + "@" + testKDC.getRealm(), state.getPrincipal());
+        assertEquals(TestKDC.USER + "@" + testKDC.getRealm(), state.getPrincipal());
         assertTrue(Instant.now().isBefore(state.getTicketValidUntil()));
         assertFalse(KerberosLogger.getCapturedLines().isEmpty());
     }
@@ -197,7 +196,7 @@ public class KerberosInternalAPITest {
     public void test_login_with_file_and_keytab() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
-            createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
+            KrbConfigUtil.createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
             testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
             true, false, null);
 
@@ -247,7 +246,7 @@ public class KerberosInternalAPITest {
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
-        testSuccessfulUserPasswordLogin(config, KDC.USER);
+        testSuccessfulUserPasswordLogin(config, TestKDC.USER);
     }
 
     /**
@@ -261,7 +260,7 @@ public class KerberosInternalAPITest {
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
-        testSuccessfulUserPasswordLogin(config, KDC.USER + "@" + testKDC.getRealm());
+        testSuccessfulUserPasswordLogin(config, TestKDC.USER + "@" + testKDC.getRealm());
     }
 
     /**
@@ -280,7 +279,7 @@ public class KerberosInternalAPITest {
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
         assertFalse(KerberosAuthManager.getKerberosState().isAuthenticated());
-        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(KDC.USER, "wrong")));
+        Util.awaitFuture(KerberosInternalAPI.login(config, new TestCallBackHandler(TestKDC.USER, "wrong")));
     }
 
     /**
@@ -333,7 +332,7 @@ public class KerberosInternalAPITest {
         rollBack();
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(),
-            testKDC.getKDCHost(), AuthMethod.KEYTAB, KDC.KEYTAB_USER, testKDC.getKeytabFilePath(), true,
+            testKDC.getKDCHost(), AuthMethod.KEYTAB, TestKDC.KEYTAB_USER, testKDC.getKeytabFilePath(), true,
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
 
         testSuccessfulKeyTabLogin(config);
@@ -584,11 +583,11 @@ public class KerberosInternalAPITest {
      *
      * @throws Throwable
      */
-    @Test(expected = LoginException.class)
+    @Test(expected = IOException.class)
     public void test_login_with_malformed_config_file() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
-            createInvalidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
+            KrbConfigUtil.createInvalidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
             testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
             true, false, null);
 
@@ -600,11 +599,11 @@ public class KerberosInternalAPITest {
      *
      * @throws Throwable
      */
-    @Test(expected = LoginException.class)
+    @Test(expected = IOException.class)
     public void test_login_with_malformed_config_file2() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
-            createInvalidKDCKrb5(testKDC.getRealm()), "", "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(),
+            KrbConfigUtil.createInvalidKDCKrb5(testKDC.getRealm()), "", "", AuthMethod.KEYTAB, testKDC.getKeytabPrincipal(),
             testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
 
         testSuccessfulKeyTabLogin(config);
@@ -652,7 +651,7 @@ public class KerberosInternalAPITest {
     public void test_login_with_file_and_keytab_but_missing_kdc_for_keytab_principal() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
-            createNoKDCforRealmKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
+            KrbConfigUtil.createNoKDCforRealmKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
             testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000,
             true, false, null);
 
@@ -682,11 +681,11 @@ public class KerberosInternalAPITest {
      */
     @Test
     public void test_renewal_with_renewable_ticket_from_ticket_cache() throws Exception {
-        testKDC.createTicketCacheWithKinit();
+        final var ccFile = KrbTicketCacheUtil.createTicketCacheWithKinit(testKDC);
 
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.DEFAULT, "", "", "", AuthMethod.TICKET_CACHE, "", "", true,
-                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, true, testKDC.getCcFile());
+                PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 115, true, true, ccFile.toString());
 
         Util.awaitFuture(KerberosInternalAPI.login(config, null));
         Instant prevValidUntil = KerberosAuthManager.getKerberosState().getTicketValidUntil();
@@ -694,7 +693,7 @@ public class KerberosInternalAPITest {
 
         KerberosState afterState = KerberosAuthManager.getKerberosState();
         assertTrue(afterState.isAuthenticated());
-        assertTrue(afterState.getTicketValidUntil().isAfter(prevValidUntil));
+        assertFalse(afterState.getTicketValidUntil().equals(prevValidUntil));
     }
 
     /**
@@ -706,7 +705,7 @@ public class KerberosInternalAPITest {
     public void test_renewal_with_keytab() throws Exception {
         // ticket lifetime is 60 000 seconds (thanks MiniKDC) and renewalSafetyMargin is 59 995 seconds -> renewal should happen after 5s
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
-            createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
+            KrbConfigUtil.createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost()), "", "", AuthMethod.KEYTAB,
             testKDC.getKeytabPrincipal(), testKDC.getKeytabFilePath(), true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 59995,
             true, false, null);
 
@@ -724,70 +723,6 @@ public class KerberosInternalAPITest {
         currentState = KerberosAuthManager.getKerberosState();
         assertTrue(currentState.isAuthenticated());
         assertTrue(currentState.getTicketValidUntil().isAfter(prevValidUntil));
-    }
-
-    private static String createValidKrb5(final String realm, final String kdc) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("[libdefaults]%n"));
-        sb.append(String.format("\tkdc_realm = %s %n", realm));
-        sb.append(String.format("\tdefault_realm = %s %n", realm));
-        sb.append(String.format("\tudp_preference_limit = 1%n"));
-        sb.append(String.format("\tdns_lookup_kdc = false%n"));
-        sb.append(String.format("[realms]%n"));
-        sb.append(String.format("\t%s = { %n \t\tkdc = %s %n\t }", realm, kdc));
-
-        Path configFile = Files.createTempFile("krb", ".conf");
-        Files.write(configFile, sb.toString().getBytes(), StandardOpenOption.WRITE);
-        configFile.toFile().deleteOnExit();
-        return configFile.toString();
-    }
-
-    private static String createInvalidKrb5(final String realm, final String kdc) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("[libdefaults]%n"));
-        sb.append(String.format("\tdefault_realm = %s %n", realm));
-        sb.append(String.format("\tudp_preference_limit = 1%n"));
-        sb.append(String.format("\tdns_lookup_kdc = false%n"));
-        sb.append(String.format("[realms]%n"));
-        sb.append(String.format("\t%s = %n \t\tkdc = %s %n\t }", realm, kdc));
-
-        Path configFile = Files.createTempFile("krb", ".conf");
-        Files.write(configFile, sb.toString().getBytes(), StandardOpenOption.WRITE);
-        configFile.toFile().deleteOnExit();
-        return configFile.toString();
-
-    }
-
-    private static String createInvalidKDCKrb5(final String realm) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("[libdefaults]%n"));
-        sb.append(String.format("\tdefault_realm = %s %n", realm));
-        sb.append(String.format("\tudp_preference_limit = 1%n"));
-        sb.append(String.format("\tdns_lookup_kdc = false%n"));
-        sb.append(String.format("[realms]%n"));
-        sb.append(String.format("\t%s = { %n \t\t%s %n\t }", realm, "-"));
-
-        Path configFile = Files.createTempFile("krb", ".conf");
-        Files.write(configFile, sb.toString().getBytes(), StandardOpenOption.WRITE);
-        configFile.toFile().deleteOnExit();
-        return configFile.toString();
-
-    }
-
-    private static String createNoKDCforRealmKrb5(final String defaultRealm, final String kdc) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("[libdefaults]%n"));
-        sb.append(String.format("\tdefault_realm = %s %n", defaultRealm));
-        sb.append(String.format("\tudp_preference_limit = 1%n"));
-        sb.append(String.format("\tdns_lookup_kdc = false%n"));
-        sb.append(String.format("[realms]%n"));
-        sb.append(String.format("\t%s = { %n \t\tkdc = %s %n\t }", "OTHER", kdc));
-
-        Path configFile = Files.createTempFile("krb", ".conf");
-        Files.write(configFile, sb.toString().getBytes(), StandardOpenOption.WRITE);
-        configFile.toFile().deleteOnExit();
-        return configFile.toString();
-
     }
 
     /**

@@ -72,7 +72,7 @@ import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
-import org.knime.kerberos.testing.KDC;
+import org.knime.kerberos.testing.TestKDC;
 import org.knime.kerberos.testing.Util;
 
 /**
@@ -82,7 +82,7 @@ import org.knime.kerberos.testing.Util;
  */
 public class KerberosLoggerTest {
 
-    private static KDC testKDC;
+    private static TestKDC testKDC;
 
     /**
      * Sets up a test testKDC.
@@ -91,7 +91,7 @@ public class KerberosLoggerTest {
      */
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        testKDC = new KDC();
+        testKDC = new TestKDC();
     }
 
     /**

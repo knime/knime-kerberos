@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Jan 31, 2019 (bjoern): created
+ *   Sep 13, 2022 (bjoern): created
  */
 package org.knime.kerberos.testing;
 
@@ -53,78 +53,24 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.Properties;
 import java.util.stream.Stream;
 
-import org.apache.hadoop.minikdc.MiniKdc;
-
 /**
- * A KDC for unit-testing purposes, based on Hadoop's MiniKDC.
+ * Utility class to manage the Kerberos ticket cache file for testing purposes.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Bjoern Lohrmann, KNIME GbmbH
  */
-public class KDC {
-
-    private final File m_kdcDir;
-
-    private final Properties kdcConf;
-
-    private final String m_krbConfPath;
-
-    private final MiniKdc m_kdc;
-
-    private final File m_keytabFile;
-
-    private final String m_keytabPrincipal;
-
-    private final String m_realm;
-
-    private final String m_kdcHost;
-
-    private final String m_ccFile;
-
-    /** Valid username for testing */
-    public static final String USER = "user";
-
-    /** Valid Password for testing */
-    public static final String PWD = "password";
-
-    /** Valid Keytab user for testing */
-    public static final String KEYTAB_USER = "keytabuser";
-
-    /**
-     * Creates and starts a MiniKDC for unit testing
-     * @throws Exception
-     */
-    public KDC() throws Exception {
-        m_kdcDir = Files.createTempDirectory("knime_kerberos_testing").toFile();
-        kdcConf = MiniKdc.createConf();
-        kdcConf.setProperty(MiniKdc.MAX_RENEWABLE_LIFETIME, "8640000");
-        kdcConf.setProperty(MiniKdc.MAX_TICKET_LIFETIME, "60000");
-        kdcConf.setProperty(MiniKdc.MIN_TICKET_LIFETIME, "60");
-        m_kdc = new MiniKdc(kdcConf, m_kdcDir);
-        m_kdc.start();
-        m_krbConfPath = m_kdc.getKrb5conf().getAbsolutePath();
-        m_keytabFile = new File(m_kdcDir, "keytab");
-        m_realm = m_kdc.getRealm();
-        m_kdcHost = m_kdc.getHost() + ":" + m_kdc.getPort();
-
-        m_kdc.createPrincipal(m_keytabFile, KEYTAB_USER);
-        m_keytabPrincipal = KEYTAB_USER + "@" + m_realm;
-
-        m_kdc.createPrincipal(USER, PWD);
-        File ccFile = new File(getDefaultFileCredentialsCacheName());
-        m_ccFile = ccFile.getAbsolutePath();
-    }
+public class KrbTicketCacheUtil {
 
     /**
      * Try to guess the default credentials cache file name.
+     *
+     * @return the guessed file path
+     * @throws IOException
      */
-    private static String getDefaultFileCredentialsCacheName() throws IOException {
+    public static String getDefaultFileCredentialsCacheName() throws IOException {
         final String stdCacheNameComponent = "krb5cc";
 
         // 1. KRB5CCNAME (bare file name without FILE:)
@@ -153,87 +99,48 @@ public class KDC {
         if (userName != null) {
             return userHome + File.separator + stdCacheNameComponent + "_" + userName;
 
-        // 4. <user.home>/krb5cc
+            // 4. <user.home>/krb5cc
         } else {
             return userHome + File.separator + stdCacheNameComponent;
         }
     }
 
-    private static long getUnixUid() throws IOException {
-        Process child = Runtime.getRuntime().exec("id -u");
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(child.getInputStream()))) {
-            return Long.parseLong(in.readLine());
-        }
-    }
-
     /**
-     * Stops the KDC
+     * Create a ticket cache file using kinit.
+     *
+     * @param kdc
      * @throws IOException
+     * @throws InterruptedException
+     * @return The path to the ticket cache file.
      */
-    public void stop() throws IOException {
-        m_kdc.stop();
-        Files.walk(m_kdcDir.toPath()).sorted(Collections.reverseOrder()).forEach(p -> {
-            try {
-                Files.delete(p);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-        try {
-            Files.delete(Paths.get(m_ccFile));
-        } catch (NoSuchFileException e) {
-            // ignore
+    public static Path createTicketCacheWithKinit(final TestKDC kdc) throws IOException, InterruptedException {
+        String kinit = "kinit";
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            // Windows will try to use the java kinit if we do not point it to MIT specifically
+            String mitPath =
+                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
+            kinit = mitPath + File.separator + "kinit";
         }
-    }
 
-    /**
-     * @return the m_keytabFile
-     */
-    public String getKeytabFilePath() {
-        return m_keytabFile.getAbsolutePath();
-    }
+        final var ccFile = Paths.get(getDefaultFileCredentialsCacheName()).toAbsolutePath();
 
-    /**
-     * @return the m_principal
-     */
-    public String getKeytabPrincipal() {
-        return m_keytabPrincipal;
-    }
+        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", ccFile.toString(), "-k", "-t",
+            kdc.getKeytabFilePath(), kdc.getKeytabPrincipal());
+        pb.environment().put("KRB5CCNAME", ccFile.toString());
+        if (System.getProperty("os.name").toUpperCase().contains("OS X")) { // Heimdal client
+            pb.environment().put("KRB5_CONFIG", writeHeimdalTcpClientConfig(kdc));
+        } else { // MIT client
+            pb.environment().put("KRB5_CONFIG", kdc.getKrbClientConfig().toAbsolutePath().toString());
+        }
+        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+        Process proc = pb.start();
+        proc.waitFor();
+        if (proc.exitValue() != 0) {
+            throw new RuntimeException("Could not obtain ticket via kinit");
+        }
 
-    /**
-     * @return the m_realm
-     */
-    public String getRealm() {
-        return m_realm;
-    }
-
-
-    /**
-     * @return the m_kdcHost
-     */
-    public String getKDCHost() {
-        return m_kdcHost;
-    }
-
-    /**
-     * @return principal of preconfigured user.
-     */
-    public String getUserPrincipal() {
-        return USER + "@" + m_realm;
-    }
-
-    /**
-     * @return the ccFile
-     */
-    public String getCcFile() {
-        return m_ccFile;
-    }
-
-    /**
-     * @return the kdcConfPath
-     */
-    public String getKdcConfPath() {
-        return m_krbConfPath;
+        return ccFile;
     }
 
     /**
@@ -245,44 +152,13 @@ public class KDC {
      * @return path of client configuration
      * @throws IOException
      */
-    private String writeHeimdalTcpClientConfig() throws IOException {
+    private static String writeHeimdalTcpClientConfig(final TestKDC kdc) throws IOException {
         final Path tmpDir = Files.createTempDirectory("heimdal-client-config");
         final Path tmpConf = tmpDir.resolve("krb5.conf");
-        final String oriConfig = Files.readString(Paths.get(m_krbConfPath));
-        final String newConfig = oriConfig.replaceAll("kdc = .*\n", "kdc = tcp/" + m_kdcHost + "\n");
+        final String oriConfig = Files.readString(kdc.getKrbClientConfig());
+        final String newConfig = oriConfig.replaceAll("kdc = .*\n", "kdc = tcp/" + kdc.getKDCHost() + "\n");
         Files.writeString(tmpConf, newConfig);
         return tmpConf.toString();
-    }
-
-    /**
-     * Create a ticket cache file using kinit.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    public void createTicketCacheWithKinit() throws IOException, InterruptedException {
-        String kinit = "kinit";
-        if (System.getProperty("os.name").startsWith("Windows")) {
-            // Windows will try to use the java kinit if we do not point it to MIT specifically
-            String mitPath =
-                Stream.of(System.getenv("PATH").split(";")).filter(s -> s.contains("MIT")).findFirst().get();
-            kinit = mitPath + File.separator + "kinit";
-        }
-        ProcessBuilder pb = new ProcessBuilder(kinit, "-l", "2m", "-r", "4m", "-c", getCcFile(), "-k", "-t",
-            getKeytabFilePath(), getKeytabPrincipal());
-        pb.environment().put("KRB5CCNAME", getCcFile());
-        if (System.getProperty("os.name").toUpperCase().contains("OS X")) { // Heimdal client
-            pb.environment().put("KRB5_CONFIG", writeHeimdalTcpClientConfig());
-        } else { // MIT client
-            pb.environment().put("KRB5_CONFIG", getKdcConfPath());
-        }
-        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-        Process proc = pb.start();
-        proc.waitFor();
-        if (proc.exitValue() != 0) {
-            throw new RuntimeException("Could not obtain ticket via kinit");
-        }
     }
 
     /**
@@ -291,8 +167,14 @@ public class KDC {
      * @throws IOException
      * @throws InterruptedException
      */
-    public void deleteTicketCache() throws IOException, InterruptedException {
-        Files.deleteIfExists(Paths.get(getCcFile()));
+    public static void deleteTicketCache() throws IOException, InterruptedException {
+        Files.deleteIfExists(Paths.get(getDefaultFileCredentialsCacheName()));
     }
 
+    private static long getUnixUid() throws IOException {
+        Process child = Runtime.getRuntime().exec("id -u");
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(child.getInputStream()))) {
+            return Long.parseLong(in.readLine());
+        }
+    }
 }
