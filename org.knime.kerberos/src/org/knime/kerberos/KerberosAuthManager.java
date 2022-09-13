@@ -79,6 +79,9 @@ import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
 import org.knime.kerberos.logger.KerberosLogger;
 
+import sun.security.krb5.Config; // NOSONAR this is intended
+import sun.security.krb5.KrbException;
+
 /**
  * Stateful class that holds the current state of the Kerberos login and offers basic operations on top of this state,
  * such as logging in, logging out etc. The state is held in static members and can be modified with static methods.
@@ -167,6 +170,13 @@ public class KerberosAuthManager {
         }
 
         KerberosLogger.stopCapture();
+
+        try {
+            Config.refresh();
+        } catch (KrbException e) {
+            // we only log this as debug because we can safely ignore it
+            LOG.debug("Failed refresh Kerberos config: " + e.getMessage(), e);
+        }
     }
 
     private static void restoreSystemProperties() {
@@ -217,6 +227,12 @@ public class KerberosAuthManager {
         setupSystemProperties(config);
 
         // ! I/O
+        try {
+            Config.refresh();
+        } catch (KrbException e) {
+            throw new IOException("Failed refresh Kerberos config: " + e.getMessage(), e);
+        }
+
         KerberosPluginConfigValidator.postRefreshValidate(config);
 
         loginPluginConfig = config;

@@ -584,7 +584,7 @@ public class KerberosInternalAPITest {
      *
      * @throws Throwable
      */
-    @Test(expected = LoginException.class)
+    @Test(expected = IOException.class)
     public void test_login_with_malformed_config_file() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
@@ -600,7 +600,7 @@ public class KerberosInternalAPITest {
      *
      * @throws Throwable
      */
-    @Test(expected = LoginException.class)
+    @Test(expected = IOException.class)
     public void test_login_with_malformed_config_file2() throws Throwable {
 
         KerberosPluginConfig config = new KerberosPluginConfig(KerberosConfigSource.FILE,
