@@ -4,7 +4,7 @@ Bundle-Name: Unit testing fragment fo KNIME Kerberos Authentication framework
 Bundle-SymbolicName: org.knime.kerberos.tests
 Bundle-Version: 5.0.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
-Fragment-Host: org.knime.kerberos
+Fragment-Host: org.knime.kerberos;bundle-version="[5.0.0,6.0.0)"
 Automatic-Module-Name: org.knime.kerberos.tests
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Require-Bundle: org.junit;bundle-version="4.12.0",
