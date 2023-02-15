@@ -110,6 +110,8 @@ public final class KerberosDelegationProvider {
 
     private static final Oid GSS_MECHANISM = pickMech();
 
+    private static final String TESTING_CONSTANT_KEY = "KNIME_KERBEROS_CONSTRAINT_DELEGATION_TESTING_MODE";
+
     private static Oid pickMech() {
         try {
             final var spnego = new Oid(SPNEGO_OID);
@@ -198,6 +200,9 @@ public final class KerberosDelegationProvider {
     }
 
     private static boolean runningInServerContext() {
+        if ("true".equals(System.getenv(TESTING_CONSTANT_KEY))) {
+            return true;
+        }
         final var nodeContext = NodeContext.getContext();
         if (nodeContext == null) {
             return false;
