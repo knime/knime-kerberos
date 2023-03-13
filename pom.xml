@@ -83,8 +83,6 @@
 					<compilerArgs>
 						<arg>--module-path</arg>
 						<arg>${java.home}/jmods</arg>
-						<arg>--add-modules</arg>
-						<arg>java.security.jgss</arg>
 						<arg>--add-exports</arg>
 						<arg>java.security.jgss/sun.security.jgss=ALL-UNNAMED</arg>
 						<arg>--add-exports</arg>
