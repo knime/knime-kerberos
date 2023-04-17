@@ -55,6 +55,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -73,6 +74,10 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.workflow.NodeContext;
+import org.knime.core.node.workflow.contextv2.HubJobExecutorInfo;
+import org.knime.core.node.workflow.contextv2.JobExecutorInfo;
+import org.knime.core.node.workflow.contextv2.ServerJobExecutorInfo;
+import org.knime.core.node.workflow.contextv2.WorkflowContextV2;
 
 import com.sun.security.jgss.ExtendedGSSCredential; //NOSONAR we have to
 
@@ -162,7 +167,7 @@ public final class KerberosDelegationProvider {
      * Invokes the given callback with a {@link GSSCredential} that :
      * <ul>
      * <li>in KNIME Analytics Platform: belongs to the currently authenticated Kerberos principal</li>
-     * <li>in a KNIME Server Executor: delegates to the current workflow user authenticated Kerberos principal, using
+     * <li>in a KNIME Hub/Server Executor: delegates to the current workflow user authenticated Kerberos principal, using
      * Microsoft constrained delegation (S4U2Self, S4U2Proxy) as the underlying delegation mechanism.</li>
      * </ul>
      *
@@ -178,7 +183,7 @@ public final class KerberosDelegationProvider {
             final GSSCredential credential = GSSManager.getInstance() //
                 .createCredential(GSSCredential.INITIATE_ONLY);
 
-            if (runningInServerContext()) {
+            if (runningInExecutor()) {
                 final GSSName nameToImpersonate = GSSManager.getInstance() //
                     .createName(getPrincipalToImpersonate(), GSSName.NT_USER_NAME, GSS_MECHANISM);
 
@@ -197,24 +202,25 @@ public final class KerberosDelegationProvider {
         });
     }
 
-    private static boolean runningInServerContext() {
+    private static Optional<WorkflowContextV2> getWorkflowContextV2() {
+
         final var nodeContext = NodeContext.getContext();
         if (nodeContext == null) {
-            return false;
+            return Optional.empty();
         }
 
         final var wfm = nodeContext.getWorkflowManager();
         if (wfm == null) {
-            return false;
+            return Optional.empty();
         }
 
-        final var workflowContext = wfm.getContext();
-        if (workflowContext == null) {
-            return false;
-        }
+        return Optional.ofNullable(wfm.getContextV2());
+    }
 
-        return workflowContext.getRemoteRepositoryAddress().isPresent()
-            && workflowContext.getServerAuthenticator().isPresent();
+    private static boolean runningInExecutor() {
+        return getWorkflowContextV2()//
+            .map(wfc -> wfc.getExecutorInfo() instanceof JobExecutorInfo)//
+            .orElse(false);
     }
 
     private static String getPrincipalToImpersonate() {
@@ -224,14 +230,24 @@ public final class KerberosDelegationProvider {
     }
 
     private static String getUserToImpersonate() {
-        final String workflowUser = NodeContext.getWorkflowUser() //
-            .orElseThrow(() -> new IllegalStateException("Could not determine workflow user to impersonate"));
-        return workflowUser;
+        final var illegalState = new IllegalStateException(
+            "Could not determine workflow user to impersonate: workflow must be running on Hub or Server");
+        // here we can assume that we do have a workflow context
+        final var wfc = getWorkflowContextV2().orElseThrow(() -> illegalState);
+
+        switch (wfc.getExecutorType()) {
+            case SERVER_EXECUTOR:
+                return ((ServerJobExecutorInfo)wfc.getExecutorInfo()).getUserId();
+            case HUB_EXECUTOR:
+                return ((HubJobExecutorInfo)wfc.getExecutorInfo()).getJobCreatorName();
+            default:
+                throw illegalState;
+        }
     }
 
-
+    @SuppressWarnings("removal")
     private static String getServerRealm() {
-        return Subject.getSubject(AccessController.getContext()) //
+        return Subject.getSubject(AccessController.getContext()) // NOSONAR there is no replacement
             .getPrincipals(KerberosPrincipal.class) //
             .iterator() //
             .next() //
@@ -317,7 +333,7 @@ public final class KerberosDelegationProvider {
     public static <T> Future<T> doWithConstrainedDelegationIfOnServer(final String serviceName,
         final String serviceHostname, final KerberosCallback<T> callback) {
 
-        if (runningInServerContext()) {
+        if (runningInExecutor()) {
             return KerberosProvider
                 .doWithKerberosAuth(() -> doConstrainedDelegation(serviceName, serviceHostname, callback));
         } else {
@@ -329,8 +345,8 @@ public final class KerberosDelegationProvider {
         final String serviceHostname, //
         final KerberosCallback<T> callback) throws Exception {
 
-        final Subject impersonatedSubject = createImpersonatedSubject(serviceName, serviceHostname);
-        final PrivilegedExceptionAction<T> action = () -> callback.doAuthenticated();
+        final var impersonatedSubject = createImpersonatedSubject(serviceName, serviceHostname);
+        final PrivilegedExceptionAction<T> action = callback::doAuthenticated;
         return Subject.doAs(impersonatedSubject, action);
     }
 
@@ -357,11 +373,11 @@ public final class KerberosDelegationProvider {
     }
 
     private static KerberosTicket getS4U2ProxyTicket(final String targetServiceName, final String targetServiceHostname,
-        final GSSCredentialImpl serverCredential, final Krb5ProxyCredential s4u2SelfCredential) throws Exception {
+        final GSSCredentialImpl serverCredential, final Krb5ProxyCredential s4u2SelfCredential) throws Exception { // NOSONAR
 
         final Credentials serverTgt = extractServerTgt(serverCredential);
 
-        final String targetServicePrincipal =
+        final var targetServicePrincipal =
             String.format("%s/%s@%s", targetServiceName, targetServiceHostname, getServerRealm());
 
         final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetServicePrincipal, //
@@ -369,8 +385,7 @@ public final class KerberosDelegationProvider {
             new PrincipalName(getUserToImpersonate(), 0, getServerRealm()), //
             serverTgt);
 
-        final KerberosTicket s4u2ProxyTicket = Krb5Util.credsToTicket(s4u2ProxyCredentials);
-        return s4u2ProxyTicket;
+        return Krb5Util.credsToTicket(s4u2ProxyCredentials);
     }
 
     private static Krb5ProxyCredential getS42SelfCredential(final String principalToImpersonate,
@@ -379,9 +394,8 @@ public final class KerberosDelegationProvider {
             .createName(principalToImpersonate, GSSName.NT_USER_NAME, GSS_MECHANISM);
         final GSSCredentialImpl impersonatedCredential =
             (GSSCredentialImpl)((ExtendedGSSCredential)serverCredential).impersonate(nameToImpersonate);
-        final Krb5ProxyCredential s4u2SelfCredential =
-            (Krb5ProxyCredential)impersonatedCredential.getElement(GSS_MECHANISM, true);
-        return s4u2SelfCredential;
+
+        return (Krb5ProxyCredential)impersonatedCredential.getElement(GSS_MECHANISM, true);
     }
 
     private static Credentials extractServerTgt(final GSSCredentialImpl serverCredential)
@@ -391,8 +405,8 @@ public final class KerberosDelegationProvider {
             (Krb5InitCredential)serverCredential.getElement(new Oid(KERBEROS5_OID), true);
 
         final Method method = serverTgtCredential.getClass().getDeclaredMethod("getKrb5Credentials");
-        method.setAccessible(true);
-        final Credentials tgtCreds = (Credentials)method.invoke(serverTgtCredential);
-        return tgtCreds;
+        method.setAccessible(true); // NOSONAR no other way to do it...
+
+        return (Credentials)method.invoke(serverTgtCredential);
     }
 }

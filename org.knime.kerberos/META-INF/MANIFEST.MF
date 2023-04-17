@@ -1,5 +1,6 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
+Automatic-Module-Name: org.knime.kerberos
 Bundle-Name: KNIME Kerberos Authentication Framework plugin
 Bundle-SymbolicName: org.knime.kerberos;singleton:=true
 Bundle-Version: 5.0.0.qualifier
@@ -14,6 +15,6 @@ Require-Bundle: org.eclipse.jface,
  org.apache.log4j;bundle-version="[1.2.21,2.0.0)",
  org.knime.core;bundle-version="[5.0.0,6.0.0)",
  org.knime.workbench.ui;bundle-version="[5.0.0,6.0.0)"
-Bundle-RequiredExecutionEnvironment: JavaSE-11
+Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
 Eclipse-BundleShape: dir
