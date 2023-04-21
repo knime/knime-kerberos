@@ -115,6 +115,8 @@ public final class KerberosDelegationProvider {
 
     private static final Oid GSS_MECHANISM = pickMech();
 
+    private static final String TESTING_CONSTANT_KEY = "knime.kerberos.constrained_delegation_testing_mode";
+
     private static Oid pickMech() {
         try {
             final var spnego = new Oid(SPNEGO_OID);
@@ -217,8 +219,12 @@ public final class KerberosDelegationProvider {
         return Optional.ofNullable(wfm.getContextV2());
     }
 
+    private static boolean isTestingMode() {
+        return Boolean.getBoolean(TESTING_CONSTANT_KEY);
+    }
+
     private static boolean runningInExecutor() {
-        return getWorkflowContextV2()//
+        return isTestingMode() || getWorkflowContextV2()//
             .map(wfc -> wfc.getExecutorInfo() instanceof JobExecutorInfo)//
             .orElse(false);
     }
@@ -234,6 +240,11 @@ public final class KerberosDelegationProvider {
             "Could not determine workflow user to impersonate: workflow must be running on Hub or Server");
         // here we can assume that we do have a workflow context
         final var wfc = getWorkflowContextV2().orElseThrow(() -> illegalState);
+
+        // testing mode
+        if (isTestingMode()) {
+            return wfc.getExecutorInfo().getUserId();
+        }
 
         switch (wfc.getExecutorType()) {
             case SERVER_EXECUTOR:
