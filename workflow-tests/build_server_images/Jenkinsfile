@@ -1,0 +1,54 @@
+#!groovy
+String BN = BRANCH_NAME == 'master' || BRANCH_NAME.startsWith('releases/') ? BRANCH_NAME : 'master'
+
+library "knime-pipeline@$BN"
+
+properties([
+    buildDiscarder(logRotator(numToKeepStr: '5')),
+    pipelineTriggers([cron('H 8 * * 4')]),
+    disableConcurrentBuilds()
+])
+
+List<String> kerberosWorkflowTestImages = ['jenkins-workflow-test-kerberos-mssql', 'jenkins-workflow-test-kerberos-postgresql']
+
+timeout(time: 1, unit: 'HOURS') {
+    node('ec2-dockerbuilder') {
+        withCredentials([
+            usernamePassword(credentialsId: 'ARTIFACTORY_CREDENTIALS', passwordVariable: 'ARTIFACTORY_PASSWORD', usernameVariable: 'ARTIFACTORY_LOGIN'),
+            usernameColonPassword(credentialsId: 'bitbucket-jenkins', variable: 'BITBUCKET_TOKEN') ]) {
+            try {
+                stage('Checkout Sources') {
+                    env.lastStage = env.STAGE_NAME
+                    checkout scm
+                }
+                // cleanup node to ensure sufficient space
+                dockerTools.dockerCleanup()
+                String shortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+
+                for (String kerberosImage in kerberosWorkflowTestImages) {
+                    stage("Build Image ${kerberosImage}:latest") {
+                        env.lastStage = env.STAGE_NAME
+                        dir("${knimetools.jenkinsfileDir()}/${kerberosImage}") {
+                            dockerTools.build("knime/${kerberosImage}:latest")
+                        }
+                    }
+
+                    if (BRANCH_NAME == 'master') {
+                        stage("Push Image ${kerberosImage}:latest") {
+                            env.lastStage = env.STAGE_NAME
+                            dockerTools.push("knime/${kerberosImage}:latest", "latest-${shortCommit}")
+                        }
+                    }
+                }
+            } catch (ex) {
+                currentBuild.result = 'FAILURE'
+                throw ex
+            } finally {
+                notifications.notifyBuild(currentBuild.result)
+                dockerTools.dockerCleanup() //  ensure containers are cleaned after a build failure
+            }
+        }
+    }
+}
+
+/* vim: set shiftwidth=4 expandtab smarttab: */
