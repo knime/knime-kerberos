@@ -19,7 +19,9 @@ try {
         },
         'Integrated Workflowtests': {
             workflowTests.runIntegratedWorkflowTests(profile: 'test', //
-             extraCredentials: [file(credentialsId: 'KNIME_KERBEROS_TEST_CONF', variable: 'KNIME_KERBEROS_TEST_CONF')])
+                extraCredentials: [file(credentialsId: 'KNIME_KERBEROS_TEST_CONF', variable: 'KNIME_KERBEROS_TEST_CONF')],
+                nodeType: 'maven', configurations: workflowTests.DEFAULT_FEATURE_BRANCH_CONFIGURATIONS
+             )
         },
     )
 
