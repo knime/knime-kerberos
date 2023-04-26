@@ -1,0 +1,20 @@
+#Wed Feb 15 10:11:25 CET 2023
+\!/=
+file_export_version=3.0
+/instance/org.knime.kerberos/org.knime.kerberos.authMethod=KEYTAB
+/instance/org.knime.kerberos/org.knime.kerberos.conf=FILE
+/instance/org.knime.kerberos/org.knime.kerberos.debug=true
+/instance/org.knime.kerberos/org.knime.kerberos.debugLogLevel=DEBUG
+/instance/org.knime.kerberos/org.knime.kerberos.realm=AD.TESTING.KNIME
+/instance/org.knime.kerberos/org.knime.kerberos.keytabPrincipal=knimeserver/client.ad.testing.knime@AD.TESTING.KNIME
+/instance/org.knime.kerberos/org.knime.kerberos.showIcon=true
+/instance/org.knime.kerberos/org.knime.kerberos.debug=true
+/instance/org.knime.database/drivers/built-in-postgres-42.3.5/attributes/additional/java.lang.String/knime.db.connection.kerberos_delegation.service/value=postgres
+/instance/org.knime.database/drivers/built-in-postgres-42.3.5/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/user/type=GSS_PRINCIPAL_NAME_WITHOUT_REALM
+/instance/org.knime.kerberos/org.knime.kerberos.conf.file=workspace_placeholder/workflow-tests/krb5.conf
+/instance/org.knime.kerberos/org.knime.kerberos.keytabFile=workspace_placeholder/workflow-tests/knimeserver.keytab
+/instance/org.knime.database/drivers/built-in-mssqlserver-9.4.0/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/gsscredential/type=DELEGATED_GSS_CREDENTIAL
+/instance/org.knime.database/drivers/built-in-mssqlserver-9.4.0/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/authenticationScheme/type=literal
+/instance/org.knime.database/drivers/built-in-mssqlserver-9.4.0/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/authenticationScheme/value=JavaKerberos
+/instance/org.knime.database/drivers/built-in-mssqlserver-9.4.0/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/integratedSecurity/type=literal
+/instance/org.knime.database/drivers/built-in-mssqlserver-9.4.0/attributes/additional/org.knime.database.util.DerivableProperties/knime.db.connection.jdbc.properties/integratedSecurity/value=true
