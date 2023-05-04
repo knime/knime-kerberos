@@ -87,7 +87,9 @@ import sun.security.jgss.krb5.Krb5ProxyCredential;
 import sun.security.jgss.krb5.Krb5Util;
 import sun.security.krb5.Credentials;
 import sun.security.krb5.PrincipalName;
+import sun.security.krb5.RealmException;
 import sun.security.krb5.internal.CredentialsUtil;
+
 
 /**
  * Provides Kerberos authentication with
@@ -388,15 +390,30 @@ public final class KerberosDelegationProvider {
 
         final Credentials serverTgt = extractServerTgt(serverCredential);
 
-        final var targetServicePrincipal =
-            String.format("%s/%s@%s", targetServiceName, targetServiceHostname, getServerRealm());
+        final var targetSpn = determineTargetServicePrincipal(targetServiceName, targetServiceHostname);
 
-        final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetServicePrincipal, //
+        final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetSpn, //
             s4u2SelfCredential.tkt, //
             new PrincipalName(getUserToImpersonate(), 0, getServerRealm()), //
             serverTgt);
 
         return Krb5Util.credsToTicket(s4u2ProxyCredentials);
+    }
+
+    private static String determineTargetServicePrincipal(final String targetServiceName, final String targetServiceHostname) {
+        final var spnWithoutRealm = String.format("%s/%s", targetServiceName, targetServiceHostname);
+        String targetRealm;
+        try {
+            // this will deduce the realm using the [domain_realm] part of the krb5.conf (with default realm as fallback).
+            targetRealm = new PrincipalName(spnWithoutRealm, PrincipalName.KRB_NT_SRV_HST, null).getRealmString();
+        } catch (RealmException ex) {
+            LOG.warn(String.format(
+                "Could not determine realm of target service %s (probably due to invalid krb5.conf). Falling back to own realm.",
+                spnWithoutRealm), ex);
+            targetRealm = getServerRealm();
+        }
+
+        return String.format("%s/%s@%s", targetServiceName, targetServiceHostname, targetRealm);
     }
 
     private static Krb5ProxyCredential getS42SelfCredential(final String principalToImpersonate,
