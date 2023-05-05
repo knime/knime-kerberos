@@ -73,6 +73,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.knime.core.node.workflow.NodeContext;
 import org.knime.core.node.workflow.WorkflowManager;
+import org.knime.core.node.workflow.contextv2.HubJobExecutorInfo;
 import org.knime.core.node.workflow.contextv2.ServerJobExecutorInfo;
 import org.knime.core.node.workflow.contextv2.WorkflowContextV2;
 import org.knime.core.node.workflow.contextv2.WorkflowContextV2.ExecutorType;
@@ -85,7 +86,9 @@ import org.knime.kerberos.config.PrefKey.KerberosConfigSource;
 import org.knime.kerberos.logger.KerberosLogger;
 
 /**
- * Testcases for {@link KerberosDelegationProvider}.
+ * Testcases for {@link KerberosDelegationProvider}. These connect to an Active Directory KDC to tests Kerberos
+ * constrained delegation. This requires some configuration (krb5.conf, keytab, ...) to be stored in a zip file, that is
+ * referenced through an environment variable.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
@@ -234,11 +237,20 @@ public class KerberosDelegationProviderTest {
      */
     @Test
     public void test_doWithConstrainedDelegationBlocking_servicename() throws Exception {
-        final var targetService = m_config.getTargetService().split("/");
 
         NodeContext.pushContext(createServerWorkflowContext());
+        run_test_doWithConstrainedDelegationBlocking_servicename();
 
-        // here we are testing without a workflow context, which means no delegation takes place
+        NodeContext.removeLastContext();
+        NodeContext.pushContext(createHubWorkflowContext());
+        run_test_doWithConstrainedDelegationBlocking_servicename();
+    }
+
+    /**
+     * @throws Exception
+     */
+    private void run_test_doWithConstrainedDelegationBlocking_servicename() throws Exception {
+        final var targetService = m_config.getTargetService().split("/");
         final var returnVal =
             KerberosDelegationProvider.doWithConstrainedDelegationBlocking(targetService[0], targetService[1], () -> {
                 final var userPrincipal = String.format("%s@%s", m_config.getUserToImpersonate(), m_config.getRealm());
@@ -277,6 +289,25 @@ public class KerberosDelegationProviderTest {
         return nodeContextMock;
     }
 
+    private NodeContext createHubWorkflowContext() {
+        // we need to be able to mock final classes here because NodeContext is final -> mockito-inline
+        final var nodeContextMock = mock(NodeContext.class);
+
+        final var wfmMock = mock(WorkflowManager.class);
+        when(nodeContextMock.getWorkflowManager()).thenReturn(wfmMock);
+
+        final var wfContext = mock(WorkflowContextV2.class);
+        when(wfContext.getExecutorType()).thenReturn(ExecutorType.HUB_EXECUTOR);
+        when(wfmMock.getContextV2()).thenReturn(wfContext);
+
+        final var executorInfo = mock(HubJobExecutorInfo.class);
+        when(executorInfo.getJobCreatorName()).thenReturn(m_config.getUserToImpersonate());
+        when(wfContext.getExecutorInfo()).thenReturn(executorInfo);
+
+        return nodeContextMock;
+    }
+
+
     /**
      * Tests
      * {@link KerberosDelegationProvider#doWithConstrainedDelegationBlocking(KerberosDelegationCallback, org.knime.core.node.ExecutionMonitor)}
@@ -287,7 +318,17 @@ public class KerberosDelegationProviderTest {
     @Test
     public void test_doWithConstrainedDelegationBlocking_gsscredential() throws Exception {
         NodeContext.pushContext(createServerWorkflowContext());
+        run_test_doWithConstrainedDelegationBlocking_gsscredential();
 
+        NodeContext.removeLastContext();
+        NodeContext.pushContext(createHubWorkflowContext());
+        run_test_doWithConstrainedDelegationBlocking_gsscredential();
+    }
+
+    /**
+     * @throws Exception
+     */
+    private void run_test_doWithConstrainedDelegationBlocking_gsscredential() throws Exception {
         // here we are testing without a workflow context, which means no delegation takes place
         final var returnVal = KerberosDelegationProvider.doWithConstrainedDelegationBlocking(gssCred -> {
             final var userPrincipal = String.format("%s@%s", m_config.getUserToImpersonate(), m_config.getRealm());

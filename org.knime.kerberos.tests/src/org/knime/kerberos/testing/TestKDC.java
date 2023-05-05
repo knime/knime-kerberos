@@ -108,10 +108,21 @@ public class TestKDC {
 
     private final String m_keytabPrincipal;
 
+    /**
+     * Constructor that creates a new KDC and starts it.
+     *
+     * @throws Exception If something went wrong creating or starting the KDC.
+     */
     public TestKDC() throws Exception {
         this(DEFAULT_KDC_CONF);
     }
 
+    /**
+     * Constructor that creates a new KDC and starts it.
+     *
+     * @param kdcConfigs A map with key/value pairs for the [kdcdefaults] section of the kdc.conf.
+     * @throws Exception If something went wrong creating or starting the KDC.
+     */
     public TestKDC(final Map<KdcConfigKey, Object> kdcConfigs) throws Exception {
         m_realm = "TEST";
         m_host = "localhost";
@@ -206,6 +217,10 @@ public class TestKDC {
         return m_keytabPrincipal;
     }
 
+    /**
+     *
+     * @return path to the Kerberos client config (krb5.conf).
+     */
     public Path getKrbClientConfig() {
         return m_krbClientConfig;
     }
