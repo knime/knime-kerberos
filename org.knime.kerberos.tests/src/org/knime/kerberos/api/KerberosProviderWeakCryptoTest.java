@@ -48,20 +48,23 @@
  */
 package org.knime.kerberos.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.security.AccessController;
 import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
 
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
 
 import org.apache.kerby.kerberos.kerb.server.KdcConfigKey;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.knime.kerberos.KerberosInternalAPI;
 import org.knime.kerberos.config.KerberosPluginConfig;
 import org.knime.kerberos.config.PrefKey;
 import org.knime.kerberos.config.PrefKey.AuthMethod;
@@ -85,7 +88,7 @@ public class KerberosProviderWeakCryptoTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @BeforeClass
+    @BeforeAll
     public static void setUpBeforeClass() throws Exception {
         var config = new HashMap<KdcConfigKey, Object>();
         config.put(KdcConfigKey.ENCRYPTION_TYPES, "arcfour-hmac rc4-hmac");
@@ -97,9 +100,26 @@ public class KerberosProviderWeakCryptoTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @AfterClass
+    @AfterAll
     public static void tearDownAfterClass() throws Exception {
         testKDC.stop();
+    }
+
+    /**
+     * Rolls back to initial state after each test
+     *
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    @AfterEach
+    public void rollBack() throws InterruptedException, ExecutionException {
+        try {
+            KerberosInternalAPI.logout().get();
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof IllegalStateException)) {
+                throw e;
+            }
+        }
     }
 
     /**
@@ -117,17 +137,11 @@ public class KerberosProviderWeakCryptoTest extends KerberosProviderTestBase {
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, false, null);
         config.save();
 
-        Exception failedWith = null;
-        try {
-            Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
-                return null;
-            }));
-        } catch (Exception e) { // should fail
-            failedWith = e;
-        }
 
-        assertNotNull("Login should not work when weak crypto is disallowed", failedWith);
-        assertTrue("Login should fail with IllegalArgumentException", failedWith instanceof IllegalArgumentException);
+        assertThrows(IllegalArgumentException.class, () -> Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
+            fail("Login should not work when weak crypto is disallowed");
+            return null;
+        })));
 
         // allows weak crypto
         final var weakCryptoConfig = KrbConfigUtil.createValidKrb5(testKDC.getRealm(), testKDC.getKDCHost(), true);
@@ -144,5 +158,4 @@ public class KerberosProviderWeakCryptoTest extends KerberosProviderTestBase {
         }));
         assertAuthenticated(testKDC.getKeytabPrincipal());
     }
-
 }

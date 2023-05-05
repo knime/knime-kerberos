@@ -48,10 +48,11 @@
  */
 package org.knime.kerberos.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -65,11 +66,11 @@ import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.LoginException;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.NodeProgressMonitor;
@@ -101,7 +102,7 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @BeforeClass
+    @BeforeAll
     public static void setUpBeforeClass() throws Exception {
         testKDC = new TestKDC();
     }
@@ -111,7 +112,7 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @AfterClass
+    @AfterAll
     public static void tearDownAfterClass() throws Exception {
         testKDC.stop();
     }
@@ -119,7 +120,7 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
     /**
      * Setup for each individual test method.
      */
-    @Before
+    @BeforeEach
     public void setupBefore() {
         KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
 
@@ -134,7 +135,7 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    @After
+    @AfterEach
     public void rollBack() throws InterruptedException, ExecutionException {
         try {
             KerberosInternalAPI.logout().get();
@@ -190,19 +191,18 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      * Assert failure in KerberosProvider.doWithKerberosAuth(), when user/pwd auth is configured but the user has not
      * logged in so far. Throws LoginException("Not logged in. Please login via the preference page first.")
      *
-     * @throws Exception
      */
-    @Test(expected = LoginException.class)
-    public void test_doWithKerberosAuth_userPwd_but_not_logged_in() throws Exception {
+    @Test
+    public void test_doWithKerberosAuth_userPwd_but_not_logged_in() {
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
         config.save();
 
-        Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
+        assertThrows(LoginException.class, () -> Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
             fail("Should never be executed");
             return null;
-        }));
+        })));
     }
 
     /**
@@ -211,7 +211,7 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @Test(expected = LoginException.class)
+    @Test
     public void test_doWithKerberosAuth_with_missing_ticketCache() throws Exception {
         KrbTicketCacheUtil.deleteTicketCache();
 
@@ -220,10 +220,10 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
                 AuthMethod.TICKET_CACHE, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
         config.save();
 
-        Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
+        assertThrows(LoginException.class, () -> Util.awaitFuture(KerberosProvider.doWithKerberosAuth(() -> {
             fail("Should never be executed");
             return null;
-        }));
+        })));
     }
 
     /**
@@ -249,19 +249,18 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      * Asserts failure in doWithKerberosAuthBlocking() when using user/password authentication, but not logged in prior
      * to invocation.
      *
-     * @throws Exception
      */
-    @Test(expected = LoginException.class)
-    public void test_doWithKerberosAuthBlocking_userPwd_but_not_logged_in() throws Exception {
+    @Test
+    public void test_doWithKerberosAuthBlocking_userPwd_but_not_logged_in() {
         KerberosPluginConfig config =
             new KerberosPluginConfig(KerberosConfigSource.REALM_KDC, "", testKDC.getRealm(), testKDC.getKDCHost(),
                 AuthMethod.USER_PWD, "", "", true, PrefKey.DEBUG_LOG_LEVEL_DEFAULT, 30000, true, true, null);
         config.save();
 
-        KerberosProvider.doWithKerberosAuthBlocking(() -> {
+        assertThrows(LoginException.class, () -> KerberosProvider.doWithKerberosAuthBlocking(() -> {
             fail("Should never be executed");
             return null;
-        }, null);
+        }, null));
     }
 
     /**
@@ -270,17 +269,17 @@ public class KerberosProviderTest extends KerberosProviderTestBase {
      *
      * @throws Exception
      */
-    @Test(expected = CanceledExecutionException.class)
+    @Test
     public void test_doWithKerberosAuthBlocking_precancelled_via_monitor() throws Exception {
         KerberosPluginConfig config = createKeytabKerberosConfig();
         config.save();
 
         final ExecutionMonitor exec = mockExecMonitor(0);
 
-        KerberosProvider.doWithKerberosAuthBlocking(() -> {
+        assertThrows(CanceledExecutionException.class, () -> KerberosProvider.doWithKerberosAuthBlocking(() -> {
             fail("Should never be executed");
             return null;
-        }, exec);
+        }, exec));
     }
 
     private static void testCancellation(final ExecutionMonitor exec, final boolean interruptToCancel,

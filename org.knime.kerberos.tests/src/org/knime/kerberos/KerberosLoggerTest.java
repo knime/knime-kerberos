@@ -48,9 +48,9 @@
  */
 package org.knime.kerberos;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.util.Base64;
@@ -60,11 +60,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.knime.core.node.NodeLogger.LEVEL;
 import org.knime.kerberos.api.KerberosState;
 import org.knime.kerberos.config.KerberosPluginConfig;
@@ -89,7 +89,7 @@ public class KerberosLoggerTest {
      *
      * @throws Exception
      */
-    @BeforeClass
+    @BeforeAll
     public static void setUpBeforeClass() throws Exception {
         testKDC = new TestKDC();
     }
@@ -99,7 +99,7 @@ public class KerberosLoggerTest {
      *
      * @throws Exception
      */
-    @AfterClass
+    @AfterAll
     public static void tearDownAfterClass() throws Exception {
         testKDC.stop();
     }
@@ -109,7 +109,7 @@ public class KerberosLoggerTest {
      *
      * @throws Exception
      */
-    @After
+    @AfterEach
     public void rollBack() throws Exception {
         try {
             Util.awaitFuture(KerberosInternalAPI.logout());
@@ -122,7 +122,7 @@ public class KerberosLoggerTest {
     /**
      * Setup for each individual test method.
      */
-    @Before
+    @BeforeEach
     public void setup() {
         // deactivates the multiplexing of Kerberos log messages into a KNIME NodeLogger,
         // which requires a fully booted KNIME and OSGI container, which we do not want.
@@ -222,7 +222,7 @@ public class KerberosLoggerTest {
         final Pattern msgRegex = Pattern
             .compile("[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+  This is message [0-9]+.[0-9]+ bla bla bla blub");
         for (String msg : capturedLines) {
-            assertTrue(msg + " does not match the expected regex", msgRegex.matcher(msg).matches());
+            assertTrue(msgRegex.matcher(msg).matches(), msg + " does not match the expected regex");
         }
     }
 
