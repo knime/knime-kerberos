@@ -25,10 +25,12 @@ try {
         },
     )
 
+
     withEnv([ 'KNIME_POSTGRES_USER=knime01', 'KNIME_POSTGRES_PASSWORD=password',
             'KNIME_MSSQL_USER=SA', 'KNIME_MSSQL_PASSWORD=Knime_Password'
       ]) {
     workflowTests.runTests(
+      configurations: workflowTests.DEFAULT_FEATURE_BRANCH_CONFIGURATIONS,
       dependencies: [
         repositories: [
           'knime-database',
