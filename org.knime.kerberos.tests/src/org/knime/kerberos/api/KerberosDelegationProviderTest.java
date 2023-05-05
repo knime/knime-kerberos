@@ -48,19 +48,17 @@
  */
 package org.knime.kerberos.api;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.util.HashMap;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.ZipFile;
 
@@ -69,15 +67,15 @@ import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.KerberosTicket;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.knime.core.node.workflow.NodeContext;
-import org.knime.core.node.workflow.WorkflowContext;
 import org.knime.core.node.workflow.WorkflowManager;
-import org.knime.core.util.auth.Authenticator;
+import org.knime.core.node.workflow.contextv2.ServerJobExecutorInfo;
+import org.knime.core.node.workflow.contextv2.WorkflowContextV2;
+import org.knime.core.node.workflow.contextv2.WorkflowContextV2.ExecutorType;
 import org.knime.kerberos.KerberosInternalAPI;
 import org.knime.kerberos.api.KerberosDelegationProvider.KerberosDelegationCallback;
 import org.knime.kerberos.config.KerberosPluginConfig;
@@ -114,8 +112,8 @@ public class KerberosDelegationProviderTest {
     /**
      * Temp folder.
      */
-    @Rule
-    public final TemporaryFolder m_tempFolder = new TemporaryFolder();
+    @TempDir
+    Path m_tempFolder;
 
     private final KrbDelegationTestConfig m_config = new KrbDelegationTestConfig();
 
@@ -125,7 +123,7 @@ public class KerberosDelegationProviderTest {
      * @throws URISyntaxException
      * @throws IOException
      */
-    @Before
+    @BeforeEach
     public void setupBefore() throws URISyntaxException, IOException {
         KerberosPluginConfig.TEST_OVERRIDES = new HashMap<>();
 
@@ -144,8 +142,8 @@ public class KerberosDelegationProviderTest {
                 CONFIG_ENV_VAR));
         }
 
-        final var krb5ConfFile = m_tempFolder.newFile("krb5.conf");
-        final var keytabFile = m_tempFolder.newFile("keytab");
+        final var krb5ConfFile = m_tempFolder.resolve("krb5.conf");
+        final var keytabFile = m_tempFolder.resolve("keytab");
 
         try (final var configZip = new ZipFile(new File(System.getenv(CONFIG_ENV_VAR)))) {
             try (var in = configZip.getInputStream(configZip.getEntry(KRB_DELEGATION_TEST_PROPERTIES))) {
@@ -159,19 +157,19 @@ public class KerberosDelegationProviderTest {
                     .replace("%REALM%", m_config.getRealm()) //
                     .replace("%KDC%", m_config.getKDC());
             }
-            Files.writeString(krb5ConfFile.toPath(), krb5Contents);
+            Files.writeString(krb5ConfFile, krb5Contents);
 
             try (var in = configZip.getInputStream(configZip.getEntry(MIDDLE_SERVICE_KEYTAB))) {
-                Files.copy(in, keytabFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(in, keytabFile);
             }
         }
 
         final var config = new KerberosPluginConfig(KerberosConfigSource.FILE, //
-            krb5ConfFile.getAbsolutePath(), //
+            krb5ConfFile.toAbsolutePath().toString(), //
             "", //
             "", AuthMethod.KEYTAB, //
             String.format("%s@%s", m_config.getMiddleService(), m_config.getRealm()), //
-            keytabFile.getAbsolutePath(), //
+            keytabFile.toAbsolutePath().toString(), //
             true, //
             PrefKey.DEBUG_LOG_LEVEL_DEFAULT, //
             30000, //
@@ -187,7 +185,7 @@ public class KerberosDelegationProviderTest {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    @After
+    @AfterEach
     public void rollBack() throws InterruptedException, ExecutionException {
         m_config.clear();
 
@@ -268,11 +266,13 @@ public class KerberosDelegationProviderTest {
         final var wfmMock = mock(WorkflowManager.class);
         when(nodeContextMock.getWorkflowManager()).thenReturn(wfmMock);
 
-        final var wfContext = mock(WorkflowContext.class);
-        when(wfContext.getRemoteRepositoryAddress()).thenReturn(Optional.of(URI.create("https://doesntmatter")));
-        when(wfContext.getServerAuthenticator()).thenReturn(Optional.of(mock(Authenticator.class)));
-        when(wfContext.getUserid()).thenReturn(m_config.getUserToImpersonate());
-        when(wfmMock.getContext()).thenReturn(wfContext);
+        final var wfContext = mock(WorkflowContextV2.class);
+        when(wfContext.getExecutorType()).thenReturn(ExecutorType.SERVER_EXECUTOR);
+        when(wfmMock.getContextV2()).thenReturn(wfContext);
+
+        final var executorInfo = mock(ServerJobExecutorInfo.class);
+        when(executorInfo.getUserId()).thenReturn(m_config.getUserToImpersonate());
+        when(wfContext.getExecutorInfo()).thenReturn(executorInfo);
 
         return nodeContextMock;
     }
