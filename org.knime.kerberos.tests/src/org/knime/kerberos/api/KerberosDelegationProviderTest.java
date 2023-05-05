@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.AccessController;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
@@ -112,6 +113,10 @@ public class KerberosDelegationProviderTest {
     private static final String KRB_DELEGATION_TEST_PROPERTIES =
         "krb-delegation-test-config/krb-delegation-test.properties";
 
+    private static final String DEFAULT_KRB5_CONF_TEMPLATE = "/krb5.conf.template";
+
+    private static final String DOMAIN_REALM_KRB5_CONF_TEMPLATE = "/krb5-domainrealm.conf.template";
+
     /**
      * Temp folder.
      */
@@ -134,11 +139,11 @@ public class KerberosDelegationProviderTest {
         // which requires a fully booted KNIME and OSGI container, which we do not want.
         KerberosLogger.setUseNodeLoggerForwarder(false);
 
-        KerberosPluginConfig config = loadAndPrepareConfig();
+        KerberosPluginConfig config = loadAndPrepareConfig(DEFAULT_KRB5_CONF_TEMPLATE);
         config.save();
     }
 
-    private KerberosPluginConfig loadAndPrepareConfig() throws URISyntaxException, IOException {
+    private KerberosPluginConfig loadAndPrepareConfig(final String krb5ConfTemplatePath) throws URISyntaxException, IOException {
         if (!System.getenv().containsKey(CONFIG_ENV_VAR)) {
             throw new IllegalArgumentException(String.format(
                 "Environment variable %s needs to be set in order to configure Kerberos test environment.",
@@ -155,7 +160,7 @@ public class KerberosDelegationProviderTest {
 
             final String krb5Contents;
             try (var in =
-                KerberosDelegationProviderTest.class.getClassLoader().getResourceAsStream("/krb5.conf.template")) {
+                KerberosDelegationProviderTest.class.getClassLoader().getResourceAsStream(krb5ConfTemplatePath)) {
                 krb5Contents = IOUtils.toString(in, "UTF8") //
                     .replace("%REALM%", m_config.getRealm()) //
                     .replace("%KDC%", m_config.getKDC());
@@ -163,7 +168,7 @@ public class KerberosDelegationProviderTest {
             Files.writeString(krb5ConfFile, krb5Contents);
 
             try (var in = configZip.getInputStream(configZip.getEntry(MIDDLE_SERVICE_KEYTAB))) {
-                Files.copy(in, keytabFile);
+                Files.copy(in, keytabFile, StandardCopyOption.REPLACE_EXISTING);
             }
         }
 
@@ -240,15 +245,33 @@ public class KerberosDelegationProviderTest {
 
         NodeContext.pushContext(createServerWorkflowContext());
         run_test_doWithConstrainedDelegationBlocking_servicename();
-
         NodeContext.removeLastContext();
+
         NodeContext.pushContext(createHubWorkflowContext());
         run_test_doWithConstrainedDelegationBlocking_servicename();
+        NodeContext.removeLastContext();
     }
 
     /**
+     * Tests
+     * {@link KerberosDelegationProvider#doWithConstrainedDelegationBlocking(String, String, KerberosCallback, org.knime.core.node.ExecutionMonitor)}
+     * with a Hub workflow context, which means delegation should take place. This test cases ensures that
+     * [domain_realm] rules are being applied to determine the realm of the target service. This is required for
+     * constrained delegation across realms.
+     *
      * @throws Exception
      */
+    @Test
+    public void test_doWithConstrainedDelegationBlocking_domainrealm() throws Exception {
+        // use a special krb5.conf template that uses "special" domain_realm rules
+        loadAndPrepareConfig(DOMAIN_REALM_KRB5_CONF_TEMPLATE).save();
+
+        NodeContext.pushContext(createHubWorkflowContext());
+        run_test_doWithConstrainedDelegationBlocking_servicename();
+        NodeContext.removeLastContext();
+    }
+
+
     private void run_test_doWithConstrainedDelegationBlocking_servicename() throws Exception {
         final var targetService = m_config.getTargetService().split("/");
         final var returnVal =
@@ -319,15 +342,13 @@ public class KerberosDelegationProviderTest {
     public void test_doWithConstrainedDelegationBlocking_gsscredential() throws Exception {
         NodeContext.pushContext(createServerWorkflowContext());
         run_test_doWithConstrainedDelegationBlocking_gsscredential();
-
         NodeContext.removeLastContext();
+
         NodeContext.pushContext(createHubWorkflowContext());
         run_test_doWithConstrainedDelegationBlocking_gsscredential();
+        NodeContext.removeLastContext();
     }
 
-    /**
-     * @throws Exception
-     */
     private void run_test_doWithConstrainedDelegationBlocking_gsscredential() throws Exception {
         // here we are testing without a workflow context, which means no delegation takes place
         final var returnVal = KerberosDelegationProvider.doWithConstrainedDelegationBlocking(gssCred -> {
@@ -348,7 +369,6 @@ public class KerberosDelegationProviderTest {
      */
     @Test
     public void test_doWithConstrainedDelegationBlocking_gsscredential_nodelegation() throws Exception {
-
         // here we are testing without a workflow context, which means no delegation takes place
         final var returnVal =
             KerberosDelegationProvider.doWithConstrainedDelegationBlocking(gssCred -> {
