@@ -48,15 +48,16 @@
  */
 package org.knime.kerberos.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.knime.kerberos.logger.KerberosLogger;
 
 /**
+ * Base class for some {@link KerberosProvider} tests.
  *
- * @author bjoern
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
 abstract class KerberosProviderTestBase {
 
