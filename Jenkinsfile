@@ -53,10 +53,13 @@ try {
           'knime-ensembles',
           'knime-office365',
           'knime-expressions',
-          'knime-streaming'
+          'knime-streaming',
+          'knime-rest',
+          'knime-xml'
         ],
         ius: [
-                    'org.knime.features.database.extensions.sqlserver.driver.feature.group'
+                    'org.knime.features.database.extensions.sqlserver.driver.feature.group',
+                    'org.knime.features.rest.feature.group'
                 ]
       ],
       sidecarContainers: [
