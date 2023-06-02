@@ -327,6 +327,39 @@ public final class KerberosDelegationProvider {
             .getFutureResult(doWithConstrainedDelegationIfOnServer(serviceName, serviceHostname, callback), exec);
     }
 
+
+    /**
+     * Invokes the given callback inside a {@link Subject#doAs(Subject, PrivilegedExceptionAction)}, where the subject
+     * has the following:
+     *
+     * <li>in KNIME Analytics Platform: Subject has the Kerberos TGT of the currently authenticated Kerberos
+     * principal</li>
+     * <li>in a KNIME Server Executor: Subject has a service ticket from the current workflow user to the given service
+     * for each provided hostname (obtained using Microsoft constrained delegation (S4U2Self, S4U2Proxy)).</li>
+     * </ul>
+     *
+     * @param serviceName Kerberos name of the service (used to build the service principal for the service ticket).
+     * @param serviceHostnames Fully qualified hostnames of the service (used to build the service principal).
+     * @param callback A {@link KerberosCallback} which will be called inside
+     *            {@link Subject#doAs(Subject, PrivilegedExceptionAction)}
+     * @param exec An {@link ExecutionMonitor} that can be used to cancel the operation. May be null.
+     * @return the value of type T returned by the given callback.
+     * @throws CanceledExecutionException If the callback execution has been cancelled using the given
+     *             {@link ExecutionMonitor}, or by interrupting the current thread.
+     * @throws LoginException, when authentication is not done with keytab but the user is not already logged in.
+     * @throws Exception when the given callback threw an exception.
+     */
+    public static <T> T doWithConstrainedDelegationBlocking(final String serviceName, final String[] serviceHostnames,
+        final KerberosCallback<T> callback, final ExecutionMonitor exec) throws Exception {
+
+        if (exec != null) {
+            exec.checkCanceled();
+        }
+
+        return KerberosProvider
+            .getFutureResult(doWithConstrainedDelegationIfOnServer(serviceName, serviceHostnames, callback), exec);
+    }
+
     /**
      * Invokes the given callback inside a {@link Subject#doAs(Subject, PrivilegedExceptionAction)}, where the subject
      * has the following:
@@ -347,24 +380,51 @@ public final class KerberosDelegationProvider {
         final String serviceHostname, final KerberosCallback<T> callback) {
 
         if (runningInExecutor()) {
+            return KerberosProvider.doWithKerberosAuth(
+                () -> doConstrainedDelegation(serviceName, new String[]{serviceHostname}, callback));
+        } else {
+            return KerberosProvider.doWithKerberosAuth(callback);
+        }
+    }
+
+    /**
+     * Invokes the given callback inside a {@link Subject#doAs(Subject, PrivilegedExceptionAction)}, where the subject
+     * has the following:
+     *
+     * <li>in KNIME Analytics Platform: Subject has the Kerberos TGT of the currently authenticated Kerberos
+     * principal</li>
+     * <li>in a KNIME Server Executor: Subject has a service ticket from the current workflow user to the given service
+     * for each provided hostname (obtained using Microsoft constrained delegation (S4U2Self, S4U2Proxy)).</li>
+     * </ul>
+     *
+     * @param serviceName Kerberos name of the service (used to build the service principal for the service ticket).
+     * @param serviceHostnames Fully qualified hostnames of the service (used to build the service principal).
+     * @param callback A {@link KerberosCallback} which will be called inside
+     *            {@link Subject#doAs(Subject, PrivilegedExceptionAction)}
+     * @return a Future with the return T of the callback.
+     */
+    public static <T> Future<T> doWithConstrainedDelegationIfOnServer(final String serviceName,
+        final String[] serviceHostnames, final KerberosCallback<T> callback) {
+
+        if (runningInExecutor()) {
             return KerberosProvider
-                .doWithKerberosAuth(() -> doConstrainedDelegation(serviceName, serviceHostname, callback));
+                .doWithKerberosAuth(() -> doConstrainedDelegation(serviceName, serviceHostnames, callback));
         } else {
             return KerberosProvider.doWithKerberosAuth(callback);
         }
     }
 
     private static <T> T doConstrainedDelegation(final String serviceName, //
-        final String serviceHostname, //
+        final String[] serviceHostnames, //
         final KerberosCallback<T> callback) throws Exception {
 
-        final var impersonatedSubject = createImpersonatedSubject(serviceName, serviceHostname);
+        final var impersonatedSubject = createImpersonatedSubject(serviceName, serviceHostnames);
         final PrivilegedExceptionAction<T> action = callback::doAuthenticated;
         return Subject.doAs(impersonatedSubject, action);
     }
 
-    private static Subject createImpersonatedSubject(final String targetServiceName, final String targetServiceHostname)
-        throws Exception {
+    private static Subject createImpersonatedSubject(final String targetServiceName,
+        final String[] targetServiceHostnames) throws Exception {
 
         // default credential created from the JAAS subject
         final GSSCredentialImpl serverCredential =
@@ -374,15 +434,19 @@ public final class KerberosDelegationProvider {
         final Krb5ProxyCredential s4u2SelfCredential =
             getS42SelfCredential(getPrincipalToImpersonate(), serverCredential);
 
-        // holds s4u2proxy ticket: user -> targetservice
-        final KerberosTicket s4u2ProxyTicket =
-            getS4U2ProxyTicket(targetServiceName, targetServiceHostname, serverCredential, s4u2SelfCredential);
+        final Set<KerberosTicket>privCredentials = new HashSet<>();
+        for (String targetServiceHostname : targetServiceHostnames) {
+            // holds s4u2proxy ticket: user -> targetservice
+            final KerberosTicket s4u2ProxyTicket =
+                    getS4U2ProxyTicket(targetServiceName, targetServiceHostname, serverCredential, s4u2SelfCredential);
+            privCredentials.add(s4u2ProxyTicket);
+        }
 
         // create new subject for user, that holds s4u2proxy ticket ticket
         return new Subject(false, //
             Collections.singleton(new KerberosPrincipal(getPrincipalToImpersonate())), //
             Collections.emptySet(), //
-            Collections.singleton(s4u2ProxyTicket));
+            privCredentials);
     }
 
     private static KerberosTicket getS4U2ProxyTicket(final String targetServiceName, final String targetServiceHostname,
@@ -391,6 +455,8 @@ public final class KerberosDelegationProvider {
         final Credentials serverTgt = extractServerTgt(serverCredential);
 
         final var targetSpn = determineTargetServicePrincipal(targetServiceName, targetServiceHostname);
+
+        LOG.debug("Acquiring service ticket for : " + targetSpn);
 
         final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetSpn, //
             s4u2SelfCredential.tkt, //
@@ -412,6 +478,7 @@ public final class KerberosDelegationProvider {
                 spnWithoutRealm), ex);
             targetRealm = getServerRealm();
         }
+        LOG.debug("Target realm: " + targetRealm);
 
         return String.format("%s/%s@%s", targetServiceName, targetServiceHostname, targetRealm);
     }
