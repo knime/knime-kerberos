@@ -35,6 +35,8 @@ try {
         repositories: [
           'knime-database',
           'knime-database-proprietary',
+          'knime-gateway',
+          'knime-credentials-base',
           'knime-kerberos',
           'knime-testing-internal',
           'knime-filehandling',
