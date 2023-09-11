@@ -26,7 +26,7 @@ timeout(time: 1, unit: 'HOURS') {
                 String shortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
                 for (String kerberosImage in kerberosWorkflowTestImages) {
-                    stage("Build Image ${kerberosImage}:latest") {
+                    stage("Build Image") {
                         env.lastStage = env.STAGE_NAME
                         dir("${knimetools.jenkinsfileDir()}/${kerberosImage}") {
                             dockerTools.build("knime/${kerberosImage}:latest")
@@ -34,7 +34,7 @@ timeout(time: 1, unit: 'HOURS') {
                     }
 
                     if (BRANCH_NAME == 'master') {
-                        stage("Push Image ${kerberosImage}:latest") {
+                        stage("Push Image") {
                             env.lastStage = env.STAGE_NAME
                             dockerTools.push("knime/${kerberosImage}:latest", "latest-${shortCommit}")
                         }
