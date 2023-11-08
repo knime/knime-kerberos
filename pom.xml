@@ -58,6 +58,11 @@
 			<url>${knime.core.ui.p2}</url>
 		</repository>
 		<repository>
+            <id>p2-knime-base</id> <!-- TODO: remove this once filehandling has been split from knime-base -->
+			<layout>p2</layout>
+			<url>${knime.base.p2}</url>
+		</repository>
+		<repository>
 			<id>p2-knime-workbench</id>
 			<layout>p2</layout>
 			<url>${knime.workbench.p2}</url>
