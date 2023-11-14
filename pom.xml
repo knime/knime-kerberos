@@ -58,9 +58,9 @@
 			<url>${knime.core.ui.p2}</url>
 		</repository>
 		<repository>
-            <id>p2-knime-base</id> <!-- TODO: remove this once filehandling has been split from knime-base -->
+            <id>p2-knime-filehandling-core</id>
 			<layout>p2</layout>
-			<url>${knime.base.p2}</url>
+			<url>${knime.filehandling.core.p2}</url>
 		</repository>
 		<repository>
 			<id>p2-knime-workbench</id>
