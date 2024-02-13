@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.AccessController;
 import java.util.HashMap;
@@ -307,6 +308,7 @@ public class KerberosDelegationProviderTest {
 
         final var executorInfo = mock(ServerJobExecutorInfo.class);
         when(executorInfo.getUserId()).thenReturn(m_config.getUserToImpersonate());
+        when(executorInfo.getLocalWorkflowPath()).thenReturn(Paths.get("./fake_workflow").toAbsolutePath().normalize());
         when(wfContext.getExecutorInfo()).thenReturn(executorInfo);
 
         return nodeContextMock;
@@ -325,6 +327,7 @@ public class KerberosDelegationProviderTest {
 
         final var executorInfo = mock(HubJobExecutorInfo.class);
         when(executorInfo.getJobCreatorName()).thenReturn(m_config.getUserToImpersonate());
+        when(executorInfo.getLocalWorkflowPath()).thenReturn(Paths.get("./fake_workflow").toAbsolutePath().normalize());
         when(wfContext.getExecutorInfo()).thenReturn(executorInfo);
 
         return nodeContextMock;
