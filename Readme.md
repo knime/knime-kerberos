@@ -1,5 +1,7 @@
 # KNIME Kerberos Authentication Framework
 
+This repository is maintained by the [KNIME Team Quokkas](mailto:scrum-bd-esi@knime.com).
+
 Kerberos is a widely used authentication scheme for services in both standard enterprise IT (e.g. ActiveDirectory), as well as Hadoop clusters.
 The KNIME Kerberos Authentication Framework makes it easier to connect to Kerberos-secured services for users of KNIME Analytics Platform as well as customers KNIME Server customers.
 
