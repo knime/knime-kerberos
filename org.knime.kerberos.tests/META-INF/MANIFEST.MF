@@ -15,7 +15,7 @@ Require-Bundle: org.knime.testing;bundle-version="[5.5.0,6.0.0)",
  org.hamcrest.library;bundle-version="[2.2.0,3.0.0)",
  net.bytebuddy.byte-buddy;bundle-version="1.8.11",
  net.bytebuddy.byte-buddy-agent;bundle-version="1.10.22",
- bcprov;bundle-version="[1.72.0,2.0.0)",
+ bcprov;bundle-version="[1.80.0,2.0.0)",
  org.objenesis;bundle-version="2.6.0"
 Bundle-ClassPath: knime.jar,
  resources/,
