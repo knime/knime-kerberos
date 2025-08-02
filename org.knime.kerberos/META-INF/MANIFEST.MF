@@ -15,6 +15,6 @@ Require-Bundle: org.eclipse.jface,
  org.apache.log4j;bundle-version="[1.2.21,2.0.0)",
  org.knime.core;bundle-version="[5.6.0,6.0.0)",
  org.knime.workbench.ui;bundle-version="[5.6.0,6.0.0)"
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ActivationPolicy: lazy
 Eclipse-BundleShape: dir
