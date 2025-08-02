@@ -83,8 +83,8 @@
 			<plugin>
 				<groupId>org.eclipse.tycho</groupId>
 				<artifactId>tycho-compiler-plugin</artifactId>
-				<version>${tycho.version}</version>
 				<configuration>
+					<deriveReleaseCompilerArgumentFromTargetLevel>false</deriveReleaseCompilerArgumentFromTargetLevel>
 					<compilerArgs>
 						<arg>--module-path</arg>
 						<arg>${java.home}/jmods</arg>

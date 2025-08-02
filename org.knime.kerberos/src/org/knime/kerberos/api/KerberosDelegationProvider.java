@@ -50,7 +50,6 @@ package org.knime.kerberos.api;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.Collections;
@@ -76,15 +75,14 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.workflow.NodeContext;
 import org.knime.core.node.workflow.contextv2.HubJobExecutorInfo;
 import org.knime.core.node.workflow.contextv2.JobExecutorInfo;
-import org.knime.core.node.workflow.contextv2.ServerJobExecutorInfo;
 import org.knime.core.node.workflow.contextv2.WorkflowContextV2;
 
 import com.sun.security.jgss.ExtendedGSSCredential; //NOSONAR we have to
 
 import sun.security.jgss.GSSCredentialImpl;
 import sun.security.jgss.krb5.Krb5InitCredential;
-import sun.security.jgss.krb5.Krb5ProxyCredential;
 import sun.security.jgss.krb5.Krb5Util;
+import sun.security.jgss.spi.GSSCredentialSpi;
 import sun.security.krb5.Credentials;
 import sun.security.krb5.PrincipalName;
 import sun.security.krb5.RealmException;
@@ -250,7 +248,7 @@ public final class KerberosDelegationProvider {
 
         switch (wfc.getExecutorType()) {
             case SERVER_EXECUTOR:
-                return ((ServerJobExecutorInfo)wfc.getExecutorInfo()).getUserId();
+                return wfc.getExecutorInfo().getUserId();
             case HUB_EXECUTOR:
                 return ((HubJobExecutorInfo)wfc.getExecutorInfo()).getJobCreatorName();
             default:
@@ -258,9 +256,8 @@ public final class KerberosDelegationProvider {
         }
     }
 
-    @SuppressWarnings("removal")
     private static String getServerRealm() {
-        return Subject.getSubject(AccessController.getContext()) // NOSONAR there is no replacement
+        return Subject.current() //
             .getPrincipals(KerberosPrincipal.class) //
             .iterator() //
             .next() //
@@ -431,7 +428,7 @@ public final class KerberosDelegationProvider {
             (GSSCredentialImpl)GSSManager.getInstance().createCredential(GSSCredential.INITIATE_ONLY);
 
         // holds s4u2self ticket: user -> knimeserver
-        final Krb5ProxyCredential s4u2SelfCredential =
+        final GSSCredentialSpi s4u2SelfCredential =
             getS42SelfCredential(getPrincipalToImpersonate(), serverCredential);
 
         final Set<KerberosTicket>privCredentials = new HashSet<>();
@@ -450,7 +447,7 @@ public final class KerberosDelegationProvider {
     }
 
     private static KerberosTicket getS4U2ProxyTicket(final String targetServiceName, final String targetServiceHostname,
-        final GSSCredentialImpl serverCredential, final Krb5ProxyCredential s4u2SelfCredential) throws Exception { // NOSONAR
+        final GSSCredentialImpl serverCredential, final GSSCredentialSpi s4u2SelfCredential) throws Exception { // NOSONAR
 
         final Credentials serverTgt = extractServerTgt(serverCredential);
 
@@ -458,8 +455,11 @@ public final class KerberosDelegationProvider {
 
         LOG.debug("Acquiring service ticket for : " + targetSpn);
 
+        // Extract the userCreds from the s4u2SelfCredential (which is a Krb5ProxyCredential)
+        final Credentials userCreds = extractUserCredentialsFromKrb5ProxyCredential(s4u2SelfCredential);
+
         final Credentials s4u2ProxyCredentials = CredentialsUtil.acquireS4U2proxyCreds(targetSpn, //
-            s4u2SelfCredential.tkt, //
+            userCreds, //
             new PrincipalName(getUserToImpersonate(), 0, getServerRealm()), //
             serverTgt);
 
@@ -483,14 +483,28 @@ public final class KerberosDelegationProvider {
         return String.format("%s/%s@%s", targetServiceName, targetServiceHostname, targetRealm);
     }
 
-    private static Krb5ProxyCredential getS42SelfCredential(final String principalToImpersonate,
+    /**
+     * @return a {@link GSSCredentialSpi}, specifically an instance of package-private class
+     *         <code>sun.security.jgss.krb5.Krb5ProxyCredential</code>.
+     */
+    private static GSSCredentialSpi getS42SelfCredential(final String principalToImpersonate,
         final GSSCredentialImpl serverCredential) throws GSSException {
         final GSSName nameToImpersonate = GSSManager.getInstance() //
             .createName(principalToImpersonate, GSSName.NT_USER_NAME, GSS_MECHANISM);
         final GSSCredentialImpl impersonatedCredential =
             (GSSCredentialImpl)((ExtendedGSSCredential)serverCredential).impersonate(nameToImpersonate);
 
-        return (Krb5ProxyCredential)impersonatedCredential.getElement(GSS_MECHANISM, true);
+        return impersonatedCredential.getElement(GSS_MECHANISM, true);
+    }
+
+    /** Assume argument is of type <code>sun.security.jgss.krb5.Krb5ProxyCredential</code> and extract the
+     * {@link Credentials} from the package-private field <code>userCreds</code> of class. See DEVOPS-3364.
+     */
+    private static Credentials extractUserCredentialsFromKrb5ProxyCredential(final GSSCredentialSpi s4u2SelfCredential)
+        throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
+        final var field = s4u2SelfCredential.getClass().getDeclaredField("userCreds");
+        field.setAccessible(true); // NOSONAR no other way to access package-private class field
+        return (Credentials) field.get(s4u2SelfCredential);
     }
 
     private static Credentials extractServerTgt(final GSSCredentialImpl serverCredential)
