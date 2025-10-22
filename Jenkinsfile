@@ -55,6 +55,7 @@ try {
           'knime-ensembles',
           'knime-office365',
           'knime-expressions',
+          'knime-scripting-editor',
           'knime-streaming',
           'knime-rest',
           'knime-xml'
