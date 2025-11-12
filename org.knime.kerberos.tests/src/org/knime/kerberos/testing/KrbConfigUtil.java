@@ -92,6 +92,7 @@ public class KrbConfigUtil {
         sb.append(String.format("\tdns_lookup_kdc = false%n"));
         if (allowWeakCrypto) {
             sb.append(String.format("\tallow_weak_crypto = true%n"));
+            sb.append(String.format("\tpermitted_enctypes = arcfour-hmac-md5%n"));
         }
         sb.append(String.format("[realms]%n"));
         sb.append(String.format("\t%s = { %n \t\tkdc = %s %n\t }", realm, kdc));
