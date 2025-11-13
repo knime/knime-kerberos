@@ -15,7 +15,7 @@ timeout(time: 1, unit: 'HOURS') {
     node('ec2-dockerbuilder') {
         withCredentials([
             usernamePassword(credentialsId: 'ARTIFACTORY_CREDENTIALS', passwordVariable: 'ARTIFACTORY_PASSWORD', usernameVariable: 'ARTIFACTORY_LOGIN'),
-            usernameColonPassword(credentialsId: 'bitbucket-jenkins', variable: 'BITBUCKET_TOKEN') ]) {
+            usernameColonPassword(credentialsId: 'jenkins-github', variable: 'GITHUB_TOKEN') ]) {
             try {
                 stage('Checkout Sources') {
                     env.lastStage = env.STAGE_NAME
